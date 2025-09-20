@@ -1,0 +1,4 @@
+*.null
+*.log
+**/report/
+**/temp/

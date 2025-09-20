@@ -182,3 +182,4 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
            "FROM Product p WHERE p.category.categoryId = :categoryId")
     List<com.example.jpa.dto.ProductSummaryDto> findProductSummariesByCategoryId(@Param("categoryId") Long categoryId);
 }
+

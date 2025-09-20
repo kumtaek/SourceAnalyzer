@@ -94,3 +94,4 @@ public class JpaConfig {
         return new org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean();
     }
 }
+

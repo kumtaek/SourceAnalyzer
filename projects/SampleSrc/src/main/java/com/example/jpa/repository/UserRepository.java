@@ -146,3 +146,4 @@ public interface UserRepository extends JpaRepository<User, Long> {
            "FROM User u WHERE u.status = :status")
     List<com.example.jpa.dto.UserSummaryDto> findUserSummariesByStatus(@Param("status") UserStatus status);
 }
+

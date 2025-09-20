@@ -179,3 +179,4 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findRecentOrdersByStatuses(@Param("fromDate") LocalDateTime fromDate, 
                                           @Param("statuses") List<OrderStatus> statuses);
 }
+

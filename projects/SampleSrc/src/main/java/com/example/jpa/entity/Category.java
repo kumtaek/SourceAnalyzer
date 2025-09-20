@@ -185,3 +185,4 @@ public class Category {
         return this.products != null ? this.products.size() : 0;
     }
 }
+

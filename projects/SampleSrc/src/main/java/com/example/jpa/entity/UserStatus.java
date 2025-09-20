@@ -29,3 +29,4 @@ public enum UserStatus {
         return ACTIVE; // 기본값
     }
 }
+

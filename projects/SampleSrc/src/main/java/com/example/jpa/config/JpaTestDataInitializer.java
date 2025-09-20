@@ -266,3 +266,4 @@ public class JpaTestDataInitializer implements CommandLineRunner {
         }
     }
 }
+

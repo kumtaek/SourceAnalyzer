@@ -88,3 +88,4 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     @Query("SELECT c FROM Category c WHERE c.parentCategory IS NULL OR c.parentCategory.categoryId = :rootId")
     List<Category> findCategoryHierarchy(@Param("rootId") Long rootId);
 }
+

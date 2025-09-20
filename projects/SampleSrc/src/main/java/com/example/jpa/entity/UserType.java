@@ -29,3 +29,4 @@ public enum UserType {
         return REGULAR; // 기본값
     }
 }
+
