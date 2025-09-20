@@ -700,7 +700,10 @@ def create_jpa_relationships(project_id: int) -> None:
     # 4. Controller-Service 관계
     create_controller_service_relationships(project_id)
     
-    # 5. JPA 연관관계 (Entity 간)
+    # 5. API_URL-METHOD 관계 (REST API 엔드포인트와 Controller 메서드 연결)
+    create_api_url_method_relationships(project_id)
+    
+    # 6. JPA 연관관계 (Entity 간 테이블 조인관계)
     create_jpa_entity_relationships(project_id)
 
 def create_entity_table_relationships(project_id: int) -> None:
@@ -735,6 +738,191 @@ def create_entity_table_relationships(project_id: int) -> None:
             }
             
             create_relationship_if_not_exists(relationship_data)
+
+def create_api_url_method_relationships(project_id: int) -> None:
+    """API_URL-METHOD 관계 생성 (REST API 엔드포인트와 Controller 메서드 연결)"""
+    
+    # API_URL 컴포넌트들 조회
+    api_url_query = """
+    SELECT c.component_id, c.component_name, c.file_id
+    FROM components c
+    WHERE c.project_id = ?
+      AND c.component_type = 'API_URL'
+      AND c.layer = 'API_ENTRY'
+      AND c.del_yn = 'N'
+    """
+    
+    api_urls = execute_query(api_url_query, [project_id])
+    
+    for api_url in api_urls:
+        # API_URL 컴포넌트명에서 URL과 HTTP 메서드 분리
+        # 예: "/api/jpa/users:GET" → url="/api/jpa/users", method="GET"
+        component_name = api_url['component_name']
+        if ':' in component_name:
+            url_pattern, http_method = component_name.rsplit(':', 1)
+        else:
+            continue
+        
+        # 해당 API를 처리하는 Controller 메서드 검색
+        controller_method_query = """
+        SELECT c.component_id, c.component_name, c.class_name, c.method_name
+        FROM components c
+        WHERE c.project_id = ?
+          AND c.component_type = 'METHOD'
+          AND c.layer = 'CONTROLLER'
+          AND (c.class_name LIKE '%Controller' OR c.class_name LIKE '%RestController')
+          AND c.del_yn = 'N'
+        """
+        
+        controller_methods = execute_query(controller_method_query, [project_id])
+        
+        for method in controller_methods:
+            # URL 패턴 매칭 (기존 backend_entry_loading.py 로직 활용)
+            if is_api_method_match(url_pattern, http_method, method):
+                # API_URL → METHOD 관계 생성
+                relationship_data = {
+                    'src_id': api_url['component_id'],
+                    'dst_id': method['component_id'],
+                    'rel_type': 'CALLS_METHOD',
+                    'description': f"API {url_pattern}:{http_method} calls {method['class_name']}.{method['method_name']}",
+                    'api_url': url_pattern,
+                    'http_method': http_method
+                }
+                
+                create_relationship_if_not_exists(relationship_data)
+                app_logger.debug(f"API_URL-METHOD 관계 생성: {component_name} → {method['class_name']}.{method['method_name']}")
+
+def create_jpa_entity_join_relationships(project_id: int) -> None:
+    """JPA Entity 연관관계에서 테이블 조인관계 도출 (src_id, dst_id 방식)"""
+    
+    # JPA Entity 컴포넌트들 조회
+    entity_query = """
+    SELECT c.component_id, c.component_name, c.file_id, c.description
+    FROM components c
+    WHERE c.project_id = ?
+      AND c.component_type = 'CLASS'
+      AND c.layer = 'MODEL'
+      AND c.description LIKE 'JPA Entity:%'
+      AND c.del_yn = 'N'
+    """
+    
+    entities = execute_query(entity_query, [project_id])
+    
+    for entity in entities:
+        # Entity 파일에서 연관관계 어노테이션 분석
+        entity_file_path = get_file_path_by_id(entity['file_id'])
+        if not entity_file_path:
+            continue
+            
+        with open(entity_file_path, 'r', encoding='utf-8') as f:
+            java_content = f.read()
+        
+        # JPA 연관관계 추출
+        relationships = extract_jpa_relationships(java_content)
+        
+        for rel in relationships:
+            # 연관관계에서 조인관계 도출
+            join_relationship = derive_join_relationship_from_jpa(entity, rel, project_id)
+            
+            if join_relationship:
+                create_table_join_relationship(join_relationship)
+
+def derive_join_relationship_from_jpa(entity: dict, jpa_relationship: dict, project_id: int) -> dict:
+    """JPA 연관관계에서 테이블 조인관계 도출 (1:N에서 1쪽이 src_id)"""
+    
+    # 현재 Entity의 테이블명 추출
+    current_table = extract_table_name_from_entity_description(entity['description'])
+    
+    # 연관 Entity의 테이블명 추출
+    target_entity_name = jpa_relationship['target_entity']
+    target_table = find_table_name_for_entity(target_entity_name, project_id)
+    
+    if not current_table or not target_table:
+        return None
+    
+    # 테이블 컴포넌트 ID 조회
+    current_table_id = find_table_component_id(project_id, current_table)
+    target_table_id = find_table_component_id(project_id, target_table)
+    
+    if not current_table_id or not target_table_id:
+        return None
+    
+    # 관계 타입에 따른 src_id, dst_id 결정 (1:N에서 1쪽이 src_id)
+    if jpa_relationship['relationship_type'] == 'OneToMany':
+        # 1:N 관계: User(1) → Order(N)
+        # 1쪽이 src_id, N쪽이 dst_id
+        src_id = current_table_id  # USERS 테이블 (1쪽)
+        dst_id = target_table_id   # ORDERS 테이블 (N쪽)
+        join_column = jpa_relationship.get('join_column', 'USER_ID')
+        
+    elif jpa_relationship['relationship_type'] == 'ManyToOne':
+        # N:1 관계: Order(N) → User(1)
+        # 1쪽이 src_id, N쪽이 dst_id
+        src_id = target_table_id   # USERS 테이블 (1쪽)
+        dst_id = current_table_id  # ORDERS 테이블 (N쪽)
+        join_column = jpa_relationship.get('join_column', 'USER_ID')
+        
+    elif jpa_relationship['relationship_type'] == 'OneToOne':
+        # 1:1 관계: JoinColumn이 있는 쪽이 dst_id (FK 소유)
+        if jpa_relationship.get('join_column'):
+            src_id = target_table_id   # 참조되는 테이블 (PK 소유)
+            dst_id = current_table_id  # 참조하는 테이블 (FK 소유)
+            join_column = jpa_relationship['join_column']
+        else:
+            # mappedBy가 있는 경우 반대편이 FK 소유
+            src_id = current_table_id
+            dst_id = target_table_id
+            join_column = 'ID'
+            
+    else:
+        # ManyToMany는 중간 테이블이 필요하므로 별도 처리
+        app_logger.debug(f"ManyToMany 관계는 현재 지원하지 않음: {entity['component_name']} ↔ {target_entity_name}")
+        return None
+    
+    return {
+        'src_id': src_id,
+        'dst_id': dst_id,
+        'rel_type': 'JOINS_WITH',
+        'description': f"JPA {jpa_relationship['relationship_type']}: {current_table}.{join_column} = {target_table}.{join_column}",
+        'join_condition': f"{current_table}.{join_column} = {target_table}.{join_column}",
+        'relationship_type': jpa_relationship['relationship_type'],
+        'join_column': join_column,
+        'mapped_by': jpa_relationship.get('mapped_by'),
+        'cascade_type': jpa_relationship.get('cascade'),
+        'fetch_type': jpa_relationship.get('fetch_type')
+    }
+
+def create_table_join_relationship(join_relationship: dict) -> None:
+    """테이블 조인관계 생성"""
+    
+    # 중복 관계 확인
+    existing_relationship = check_existing_join_relationship(
+        join_relationship['src_id'], 
+        join_relationship['dst_id'],
+        join_relationship['join_column']
+    )
+    
+    if not existing_relationship:
+        create_relationship_if_not_exists(join_relationship)
+        app_logger.info(f"JPA 조인관계 생성: {join_relationship['description']}")
+    else:
+        app_logger.debug(f"JPA 조인관계 이미 존재: {join_relationship['description']}")
+
+def check_existing_join_relationship(src_id: int, dst_id: int, join_column: str) -> bool:
+    """기존 조인관계 존재 여부 확인"""
+    
+    query = """
+    SELECT COUNT(*) as cnt
+    FROM relationships r
+    WHERE r.src_id = ?
+      AND r.dst_id = ?
+      AND r.rel_type = 'JOINS_WITH'
+      AND (r.join_column = ? OR r.join_condition LIKE ?)
+      AND r.del_yn = 'N'
+    """
+    
+    result = execute_query(query, [src_id, dst_id, join_column, f"%{join_column}%"])
+    return result[0]['cnt'] > 0 if result else False
 
 def create_repository_entity_relationships(project_id: int) -> None:
     """Repository-Entity 관계 생성"""
@@ -1105,7 +1293,7 @@ def analyze_jpa_configuration(properties_content: str) -> dict:
 - 프론트엔드에서 테이블까지 완전한 추적 체인 완성
 
 ### 12.2 통합 테스트
-- SampleSrc 프로젝트의 JPA 샘플 소스 분석 테스트
+- 프로젝트의 JPA 샘플 소스 분석 테스트
 - 메타데이터 생성 검증
 - 영향평가 시나리오 테스트
 

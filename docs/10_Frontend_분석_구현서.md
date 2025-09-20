@@ -5,12 +5,13 @@
 - **버전**: v1.0
 - **목적**: JSP/JSX 등 프론트엔드 파일 분석 및 API 연결
 
-## 1. Frontend 분석 개요
+## 1. Frontend 분석 개요 (연관관계 도출 중심)
 
 ### 1.1 분석 목적
-- 프론트엔드에서 백엔드 API 호출 패턴 추출
-- Frontend -> Backend 연결 관계 구축
-- 전체 콜체인 완성을 위한 시작점 제공
+- **연관관계 도출**: 완벽한 파싱보다 관계 추출 우선
+- **즉시 관계 생성**: 파싱과 동시에 관계 도출
+- **안전한 Fallback**: 고급 파싱 실패 시 기본 파싱으로 대체
+- **점진적 관계 완성**: 파일별로 관계를 점진적으로 완성
 
 ### 1.2 처리 대상 파일
 ```
@@ -25,7 +26,7 @@
 - JS: JavaScript API 서비스 모듈
 ```
 
-## 2. Frontend 분석 플로우
+## 2. Frontend 분석 플로우 (연관관계 중심)
 
 ### 2.1 전체 처리 플로우
 
@@ -34,22 +35,29 @@ flowchart TD
     A["Frontend 파일 선택"] --> B["파일 타입 판별"]
     B --> C{지원 파일 타입?}
     C -->|No| D["파일 건너뛰기"]
-    C -->|Yes| E["API 호출 패턴 추출"]
-    E --> F["URL 패턴 분석"]
-    F --> G["HTTP 메서드 추출"]
-    G --> H["Controller 매칭"]
-    H --> I["API 컴포넌트 생성"]
-    I --> J["관계 생성"]
-    J --> K{더 많은 Frontend?}
-    K -->|Yes| A
-    K -->|No| L["분석 완료"]
+    C -->|Yes| E["Frontend 파싱 시도"]
+    E --> F{파싱 성공?}
+    F -->|Yes| G["고급 분석 수행"]
+    F -->|No| H["기본 파싱으로 Fallback"]
+    G --> I["API 호출 패턴 추출"]
+    H --> I
+    I --> J["**즉시 관계 도출**"]
+    J --> K["URL 패턴 분석"]
+    K --> L["Controller 매칭"]
+    L --> M["API 컴포넌트 생성"]
+    M --> N["관계 생성 및 저장"]
+    N --> O{더 많은 Frontend?}
+    O -->|Yes| A
+    O -->|No| P["분석 완료"]
     
     style A fill:#e3f2fd
-    style L fill:#c8e6c9
+    style P fill:#c8e6c9
     style D fill:#ffcdd2
+    style J fill:#e8f5e8
+    style H fill:#fff3e0
 ```
 
-### 2.2 API 호출 추출 시퀀스
+### 2.2 API 호출 추출 시퀀스 (연관관계 중심)
 
 ```mermaid
 sequenceDiagram
@@ -59,15 +67,19 @@ sequenceDiagram
     participant M as Controller Matcher
     participant C as Component Creator
     participant R as Relationship Creator
+    participant D as Database
     
     F->>P: Frontend 파일 전달
-    P->>P: API 호출 패턴 검색
+    P->>P: API 호출 패턴 검색 (Fallback 포함)
     P->>U: 추출된 URL 전달
     U->>U: URL 정규화 및 분석
+    U->>R: **즉시 관계 도출**
+    R->>D: 관계 즉시 저장
     U->>M: Controller 메서드 매칭 요청
     M->>M: 패턴 기반 매칭 수행
     M->>C: API 컴포넌트 생성 요청
     C->>R: Frontend-API 관계 생성 요청
+    R->>D: 관계 즉시 저장
 ```
 
 ## 3. API 호출 패턴 추출

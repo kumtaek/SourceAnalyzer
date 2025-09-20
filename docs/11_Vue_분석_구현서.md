@@ -498,41 +498,139 @@ def normalize_api_service_url(api_url: str) -> str:
 
 ## 5. Vue 컴포넌트 생성
 
-### 5.1 Vue 컴포넌트 메타데이터 생성
+### 5.1 Vue 컴포넌트 메타데이터 생성 (기존 로직 준수)
 
 ```python
-def create_vue_component(component_info: VueComponentInfo, 
-                        project_id: int, file_id: int) -> int:
-    """Vue 컴포넌트 생성"""
+def process_vue_file(vue_file_path: str, project_id: int) -> None:
+    """Vue 파일 처리 (기존 JSP 방식과 동일)"""
     
-    # 1. Vue 컴포넌트 생성
+    # 1. Vue 파일은 files 테이블에만 저장 (components 테이블에는 저장 안함)
+    # 기존 JSP 파일 처리 방식과 동일
+    vue_file_id = get_file_id_from_files_table(vue_file_path, project_id)
+    
+    if not vue_file_id:
+        app_logger.warning(f"Vue 파일이 files 테이블에 없음: {vue_file_path}")
+        return
+    
+    # 2. Vue 파일에서 API 호출 패턴 추출
+    with open(vue_file_path, 'r', encoding='utf-8') as f:
+        vue_content = f.read()
+    
+    component_info = parse_vue_file_structure(vue_content)
+    
+    # 3. API 호출들에 대해 API_URL 컴포넌트 생성 (기존 backend_entry_loading.py 방식)
+    for api_call in component_info.api_calls:
+        create_api_url_component_for_vue(api_call, vue_file_id, project_id)
+
+def create_api_url_component_for_vue(api_call: dict, vue_file_id: int, project_id: int) -> int:
+    """Vue 파일에서 호출하는 API에 대한 API_URL 컴포넌트 생성"""
+    
+    # 1. API_URL 컴포넌트명 생성 (기존 방식과 동일)
+    component_name = f"{api_call['url']}:{api_call['method']}"
+    
+    # 2. 기존 API_URL 컴포넌트 검색
+    existing_component = find_existing_api_url_component(
+        project_id, api_call['url'], api_call['method']
+    )
+    
+    if existing_component:
+        app_logger.debug(f"기존 API_URL 컴포넌트 사용: {component_name}")
+        return existing_component.component_id
+    
+    # 3. 새 API_URL 컴포넌트 생성 (file_id = vue_file_id)
     component_data = {
         'project_id': project_id,
-        'file_id': file_id,
-        'component_name': component_info.component_name,
-        'component_type': 'FRONTEND',
-        'layer': 'FRONTEND',
-        'line_start': component_info.line_start,
-        'line_end': component_info.line_end,
-        'description': f"Vue.js Component: {component_info.component_name}",
-        'frontend_type': 'VUE_COMPONENT',
-        'has_template': bool(component_info.template_section),
-        'has_script': bool(component_info.script_section),
-        'method_count': len(component_info.methods),
-        'api_call_count': len(component_info.api_calls)
+        'file_id': vue_file_id,  # Vue 파일의 file_id 사용 (중요!)
+        'component_name': component_name,
+        'component_type': 'API_URL',
+        'layer': 'API_ENTRY',
+        'line_start': api_call.get('line', 1),
+        'line_end': api_call.get('line', 1),
+        'api_url': api_call['url'],
+        'call_method': api_call['method'],
+        'description': f"Vue component API call: {api_call['method']} {api_call['url']}",
+        'hash_value': generate_hash(f"{component_name}_{vue_file_id}"),
+        'del_yn': 'N'
     }
     
     component_id = insert_component(component_data)
     
-    # 2. Vue 메서드들 생성
-    for method_info in component_info.methods:
-        create_vue_method_component(method_info, component_id, project_id, file_id)
+    # 4. API_URL → METHOD 관계 생성 (Controller 메서드와 연결)
+    create_api_url_to_method_relationship(component_id, api_call, project_id)
     
-    # 3. API 호출 관계 생성
-    for api_call in component_info.api_calls:
-        create_vue_api_relationship(component_id, api_call, project_id)
-    
+    app_logger.debug(f"Vue API_URL 컴포넌트 생성: {component_name} (file_id: {vue_file_id})")
     return component_id
+
+def create_api_url_to_method_relationship(api_url_component_id: int, api_call: dict, project_id: int) -> None:
+    """API_URL 컴포넌트와 Controller METHOD 컴포넌트 간 관계 생성"""
+    
+    # Controller 메서드 검색 (JPA Controller 포함)
+    controller_method_query = """
+    SELECT c.component_id, c.component_name, c.class_name, c.method_name
+    FROM components c
+    WHERE c.project_id = ?
+      AND c.component_type = 'METHOD'
+      AND c.layer = 'CONTROLLER'
+      AND (c.class_name LIKE '%Controller' OR c.class_name LIKE '%RestController')
+      AND c.del_yn = 'N'
+    """
+    
+    controller_methods = execute_query(controller_method_query, [project_id])
+    
+    for method in controller_methods:
+        # URL 패턴 매칭 (JPA REST API 포함)
+        if is_vue_api_method_match(api_call['url'], api_call['method'], method):
+            # API_URL → METHOD 관계 생성
+            relationship_data = {
+                'src_id': api_url_component_id,  # API_URL 컴포넌트
+                'dst_id': method['component_id'], # Controller METHOD 컴포넌트
+                'rel_type': 'CALLS_METHOD',
+                'description': f"Vue API {api_call['method']} {api_call['url']} calls {method['class_name']}.{method['method_name']}",
+                'api_url': api_call['url'],
+                'http_method': api_call['method'],
+                'call_context': api_call.get('context', '')
+            }
+            
+            create_relationship_if_not_exists(relationship_data)
+            app_logger.debug(f"Vue API_URL-METHOD 관계 생성: {api_call['url']}:{api_call['method']} → {method['class_name']}.{method['method_name']}")
+            break  # 첫 번째 매칭만 사용
+
+def is_vue_api_method_match(api_url: str, http_method: str, controller_method: dict) -> bool:
+    """Vue API 호출과 Controller 메서드 매칭 여부 확인"""
+    
+    # JPA REST API 패턴 매칭
+    jpa_api_patterns = {
+        '/api/jpa/users': ['JpaUserController', 'UserController'],
+        '/api/jpa/products': ['JpaProductController', 'ProductController'],
+        '/api/jpa/orders': ['JpaOrderController', 'OrderController']
+    }
+    
+    # 1. JPA API 패턴 확인
+    for pattern, controller_classes in jpa_api_patterns.items():
+        if api_url.startswith(pattern):
+            if controller_method['class_name'] in controller_classes:
+                # HTTP 메서드와 Controller 메서드명 매칭 확인
+                return is_http_method_match(http_method, controller_method['method_name'])
+    
+    # 2. 일반 API 패턴 확인 (기존 로직)
+    return is_general_api_method_match(api_url, http_method, controller_method)
+
+def is_http_method_match(http_method: str, controller_method_name: str) -> bool:
+    """HTTP 메서드와 Controller 메서드명 매칭"""
+    
+    method_patterns = {
+        'GET': ['get', 'find', 'search', 'list', 'show', 'view'],
+        'POST': ['create', 'add', 'insert', 'save', 'register'],
+        'PUT': ['update', 'modify', 'edit', 'change'],
+        'DELETE': ['delete', 'remove', 'destroy']
+    }
+    
+    if http_method in method_patterns:
+        patterns = method_patterns[http_method]
+        method_lower = controller_method_name.lower()
+        return any(pattern in method_lower for pattern in patterns)
+    
+    return False
 
 def create_vue_api_service_component(service_info: VueApiServiceInfo,
                                     project_id: int, file_id: int) -> int:
@@ -589,88 +687,126 @@ def create_vue_api_relationship(vue_component_id: int, api_call: dict, project_i
 
 ## 6. Vue-Backend 연결 구조
 
-### 6.1 Vue → JPA 완전 연결 구조
+### 6.1 Vue → JPA 완전 연결 구조 (메타DB 저장 방식)
 
 ```mermaid
 graph TD
-    subgraph "Frontend Layer"
-        V1[JpaUserManagement.vue]
-        V2[JpaProductManagement.vue]
-        S1[UserApiService.js]
-        S2[ProductApiService.js]
+    subgraph "files 테이블"
+        F1[JpaUserManagement.vue<br/>file_id: 101]
+        F2[UserApiService.js<br/>file_id: 102]
+        F3[JpaUserController.java<br/>file_id: 103]
     end
     
-    subgraph "API Layer"
-        A1[GET /api/jpa/users]
-        A2[POST /api/jpa/users]
-        A3[GET /api/jpa/products]
-        A4[PUT /api/jpa/products/*]
+    subgraph "components 테이블"
+        A1[/api/jpa/users:GET<br/>API_URL<br/>file_id: 101]
+        A2[/api/jpa/users:POST<br/>API_URL<br/>file_id: 101]
+        
+        C1[getAllUsers<br/>METHOD<br/>file_id: 103]
+        C2[createUser<br/>METHOD<br/>file_id: 103]
+        
+        R1[findAll<br/>METHOD<br/>file_id: 104]
+        R2[save<br/>METHOD<br/>file_id: 104]
+        
+        Q1[JPA_AUTO_findAll<br/>SQL_SELECT<br/>file_id: 104]
+        Q2[JPA_AUTO_save<br/>SQL_INSERT<br/>file_id: 104]
+        
+        T1[USERS<br/>TABLE]
     end
     
-    subgraph "Controller Layer"
-        C1[JpaUserController.getAllUsers]
-        C2[JpaUserController.createUser]
-        C3[JpaProductController.getAllProducts]
-        C4[JpaProductController.updateProduct]
+    subgraph "relationships 테이블"
+        REL1[src_id: A1, dst_id: C1<br/>CALLS_METHOD]
+        REL2[src_id: A2, dst_id: C2<br/>CALLS_METHOD]
+        REL3[src_id: C1, dst_id: R1<br/>CALLS_METHOD]
+        REL4[src_id: C2, dst_id: R2<br/>CALLS_METHOD]
+        REL5[src_id: R1, dst_id: Q1<br/>CALLS_QUERY]
+        REL6[src_id: R2, dst_id: Q2<br/>CALLS_QUERY]
+        REL7[src_id: Q1, dst_id: T1<br/>USES_TABLE]
+        REL8[src_id: Q2, dst_id: T1<br/>USES_TABLE]
     end
     
-    subgraph "Service Layer"
-        SV1[JpaUserService.getAllUsers]
-        SV2[JpaUserService.createUser]
-        SV3[JpaProductService.getAllProducts]
-        SV4[JpaProductService.updateProduct]
-    end
-    
-    subgraph "Repository Layer"
-        R1[UserRepository.findAll]
-        R2[UserRepository.save]
-        R3[ProductRepository.findAll]
-        R4[ProductRepository.save]
-    end
-    
-    subgraph "Query Layer"
-        Q1[SELECT e FROM User e]
-        Q2[INSERT INTO USERS]
-        Q3[SELECT e FROM Product e]
-        Q4[UPDATE PRODUCTS SET]
-    end
-    
-    subgraph "Database Layer"
-        T1[(USERS)]
-        T2[(PRODUCTS)]
-    end
-    
-    V1 --> S1
-    V2 --> S2
-    S1 --> A1
-    S1 --> A2
-    S2 --> A3
-    S2 --> A4
+    F1 -.-> A1
+    F1 -.-> A2
+    F3 -.-> C1
+    F3 -.-> C2
     
     A1 --> C1
     A2 --> C2
-    A3 --> C3
-    A4 --> C4
-    
-    C1 --> SV1
-    C2 --> SV2
-    C3 --> SV3
-    C4 --> SV4
-    
-    SV1 --> R1
-    SV2 --> R2
-    SV3 --> R3
-    SV4 --> R4
-    
+    C1 --> R1
+    C2 --> R2
     R1 --> Q1
     R2 --> Q2
-    R3 --> Q3
-    R4 --> Q4
-    
     Q1 --> T1
     Q2 --> T1
-    Q3 --> T2
-    Q4 --> T2
+    
+    style F1 fill:#e3f2fd
+    style A1 fill:#f3e5f5
+    style A2 fill:#f3e5f5
+    style C1 fill:#fff3e0
+    style C2 fill:#fff3e0
+    style Q1 fill:#e8f5e8
+    style Q2 fill:#e8f5e8
+    style T1 fill:#ffcc80
+```
+
+### 6.2 메타DB 저장 구조 상세
+
+```python
+# 1. Vue 파일 저장 (files 테이블)
+vue_file_data = {
+    'file_id': 101,
+    'project_id': 1,
+    'file_name': 'JpaUserManagement.vue',
+    'file_path': 'src/main/webapp/vue/components/JpaUserManagement.vue',
+    'file_type': 'vue',
+    'file_size': 15420,
+    'hash_value': 'abc123...'
+}
+
+# 2. API_URL 컴포넌트 저장 (components 테이블)
+api_url_component = {
+    'component_id': 201,
+    'project_id': 1,
+    'file_id': 101,  # Vue 파일의 file_id
+    'component_name': '/api/jpa/users:GET',
+    'component_type': 'API_URL',
+    'layer': 'API_ENTRY',
+    'api_url': '/api/jpa/users',
+    'call_method': 'GET'
+}
+
+# 3. JPA Repository 쿼리 저장 (components 테이블)
+jpa_query_component = {
+    'component_id': 301,
+    'project_id': 1,
+    'file_id': 104,  # UserRepository.java file_id
+    'component_name': 'JPA_AUTO_findAll',
+    'component_type': 'SQL_SELECT',
+    'layer': 'QUERY',
+    'sql_content': 'SELECT e FROM User e',
+    'method_name': 'findAll',
+    'is_jpa_generated': True
+}
+
+# 4. API_URL → METHOD 관계 (relationships 테이블)
+api_method_relationship = {
+    'src_id': 201,  # API_URL 컴포넌트
+    'dst_id': 202,  # Controller METHOD 컴포넌트
+    'rel_type': 'CALLS_METHOD',
+    'description': 'Vue API GET /api/jpa/users calls JpaUserController.getAllUsers',
+    'api_url': '/api/jpa/users',
+    'http_method': 'GET'
+}
+
+# 5. JPA Entity 조인관계 (relationships 테이블)
+jpa_join_relationship = {
+    'src_id': 401,  # USERS 테이블 컴포넌트 (1쪽)
+    'dst_id': 402,  # ORDERS 테이블 컴포넌트 (N쪽)
+    'rel_type': 'JOINS_WITH',
+    'description': 'JPA OneToMany: USERS.USER_ID = ORDERS.USER_ID',
+    'join_condition': 'USERS.USER_ID = ORDERS.USER_ID',
+    'relationship_type': 'OneToMany',
+    'join_column': 'USER_ID'
+}
 ```
 
 ### 6.2 Vue 기반 영향평가 체인
@@ -1076,7 +1212,7 @@ vue_analysis:
 ## 11. 다음 단계
 
 ### 11.1 JPA-Vue 통합 테스트
-- SampleSrc 프로젝트의 JPA + Vue 샘플 소스 분석 테스트
+- 프로젝트의 JPA + Vue 샘플 소스 분석 테스트
 - Vue → JPA 완전 연결 체인 검증
 - 영향평가 시나리오 테스트
 
