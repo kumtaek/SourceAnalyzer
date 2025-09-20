@@ -1,0 +1,101 @@
+# SQL 분석 패턴 설정
+# SourceAnalyzer SQL 분석 모듈에서 사용하는 정규식 패턴들
+
+sql_analysis:
+  # 테이블 추출 패턴들
+  table_extraction_patterns:
+    - name: "standard_from_join"
+      pattern: "(?:FROM|JOIN)\\s+(\\w+)(?:_\\$\\{[^}]+\\})?\\s+(\\w+)"
+      confidence: 0.95
+      description: "표준 FROM/JOIN 구문"
+      example: "FROM users u JOIN orders o"
+    
+    - name: "oracle_implicit_join"
+      pattern: "FROM\\s+((?:\\w+(?:_\\$\\{[^}]+\\})?\\s+\\w+,?\\s*)+)"
+      confidence: 0.80
+      description: "Oracle 암시적 조인"
+      example: "FROM users u, orders o, products p"
+    
+    - name: "subquery_table"
+      pattern: "(?:IN|EXISTS)\\s*\\(\\s*SELECT[^)]+FROM\\s+(\\w+)"
+      confidence: 0.85
+      description: "서브쿼리 내 테이블"
+      example: "WHERE id IN (SELECT user_id FROM orders)"
+    
+    - name: "java_string_sql"
+      pattern: "\"[^\"]*FROM\\s+(\\w+)[^\"]*\""
+      confidence: 0.70
+      description: "Java 문자열 내 SQL"
+      example: 'String sql = "SELECT * FROM users WHERE id = ?"'
+
+  # 조인 조건 추출 패턴들
+  join_condition_patterns:
+    - name: "explicit_join_on"
+      pattern: "ON\\s+(\\w+)\\.(\\w+)\\s*=\\s*(\\w+)\\.(\\w+)"
+      confidence: 0.95
+      description: "명시적 JOIN ON 조건"
+      example: "ON u.user_id = o.user_id"
+    
+    - name: "implicit_join_where"
+      pattern: "WHERE.*?(\\w+)\\.(\\w+)\\s*=\\s*(\\w+)\\.(\\w+)"
+      confidence: 0.90
+      description: "암시적 JOIN WHERE 조건"
+      example: "WHERE u.user_id = o.user_id"
+    
+    - name: "oracle_outer_join"
+      pattern: "(\\w+)\\.(\\w+)\\s*\\(\\+\\)\\s*=\\s*(\\w+)\\.(\\w+)"
+      confidence: 0.85
+      description: "Oracle 외부 조인"
+      example: "u.user_id(+) = o.user_id"
+
+  # 쿼리 타입 분류 패턴들
+  query_type_patterns:
+    - name: "select_query"
+      pattern: "^\\s*SELECT\\s+"
+      query_type: "SELECT"
+      confidence: 1.0
+      description: "SELECT 쿼리"
+    
+    - name: "insert_query"
+      pattern: "^\\s*INSERT\\s+INTO\\s+"
+      query_type: "INSERT"
+      confidence: 1.0
+      description: "INSERT 쿼리"
+    
+    - name: "update_query"
+      pattern: "^\\s*UPDATE\\s+"
+      query_type: "UPDATE"
+      confidence: 1.0
+      description: "UPDATE 쿼리"
+    
+    - name: "delete_query"
+      pattern: "^\\s*DELETE\\s+FROM\\s+"
+      query_type: "DELETE"
+      confidence: 1.0
+      description: "DELETE 쿼리"
+
+  # INFERRED 객체 생성 규칙
+  inferred_creation_rules:
+    - condition: "table_not_exists"
+      action: "create_inferred_table"
+      description: "존재하지 않는 테이블은 INFERRED로 생성"
+    
+    - condition: "column_not_exists"
+      action: "create_inferred_column"
+      description: "존재하지 않는 컬럼은 INFERRED로 생성"
+    
+    - condition: "dynamic_table_name"
+      action: "normalize_table_name"
+      description: "동적 테이블명 정규화 (users_${env} → USERS_)"
+
+  # 진화 조건 패턴들
+  evolution_patterns:
+    - name: "java_reference"
+      pattern: "(\\w+)\\s*=\\s*(\\w+)\\.(\\w+)\\s*\\([^)]*\\)"
+      condition: "java_method_call"
+      description: "Java에서 INFERRED 객체 참조 시 진화"
+    
+    - name: "xml_reference"
+      pattern: "<\\w+\\s+id=\"([^\"]+)\""
+      condition: "xml_bean_reference"
+      description: "XML에서 INFERRED 객체 참조 시 진화"

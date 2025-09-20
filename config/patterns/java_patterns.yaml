@@ -1,0 +1,147 @@
+# Java 분석 패턴 설정
+# SourceAnalyzer Java 분석 모듈에서 사용하는 정규식 패턴들
+
+java_analysis:
+  # 클래스 추출 패턴들
+  class_extraction_patterns:
+    - name: "public_class"
+      pattern: "public\\s+class\\s+(\\w+)\\s*(?:extends\\s+\\w+)?\\s*(?:implements\\s+[^{]+)?\\s*\\{"
+      confidence: 0.95
+      description: "public 클래스"
+      example: "public class UserService {"
+    
+    - name: "interface_declaration"
+      pattern: "public\\s+interface\\s+(\\w+)\\s*(?:extends\\s+[^{]+)?\\s*\\{"
+      confidence: 0.95
+      description: "인터페이스 선언"
+      example: "public interface UserRepository {"
+    
+    - name: "annotation_class"
+      pattern: "@\\w+(?:\\([^)]*\\))?\\s*public\\s+class\\s+(\\w+)"
+      confidence: 0.90
+      description: "어노테이션 클래스"
+      example: "@Service public class UserService"
+    
+    - name: "abstract_class"
+      pattern: "public\\s+abstract\\s+class\\s+(\\w+)\\s*(?:extends\\s+\\w+)?\\s*\\{"
+      confidence: 0.95
+      description: "추상 클래스"
+      example: "public abstract class BaseService {"
+
+  # 메서드 추출 패턴들
+  method_extraction_patterns:
+    - name: "public_method"
+      pattern: "public\\s+(?:static\\s+)?(?:\\w+\\s+)?(\\w+)\\s*\\([^)]*\\)\\s*(?:throws\\s+[^{]+)?\\s*\\{"
+      confidence: 0.90
+      description: "public 메서드"
+      example: "public User findUserById(Long id) {"
+    
+    - name: "annotation_method"
+      pattern: "@\\w+(?:\\([^)]*\\))?\\s*public\\s+(?:\\w+\\s+)?(\\w+)\\s*\\([^)]*\\)"
+      confidence: 0.85
+      description: "어노테이션 메서드"
+      example: "@GetMapping(\"/users/{id}\") public User getUser(@PathVariable Long id)"
+    
+    - name: "private_method"
+      pattern: "private\\s+(?:static\\s+)?(?:\\w+\\s+)?(\\w+)\\s*\\([^)]*\\)\\s*\\{"
+      confidence: 0.90
+      description: "private 메서드"
+      example: "private void validateUser(User user) {"
+    
+    - name: "protected_method"
+      pattern: "protected\\s+(?:\\w+\\s+)?(\\w+)\\s*\\([^)]*\\)\\s*\\{"
+      confidence: 0.90
+      description: "protected 메서드"
+      example: "protected void processData() {"
+
+  # SQL 추출 패턴들
+  sql_extraction_patterns:
+    - name: "jdbc_statement"
+      pattern: "(?:stmt|statement)\\.(?:executeQuery|executeUpdate)\\s*\\(\\s*[\"']([^\"']+)[\"']"
+      confidence: 0.90
+      description: "JDBC Statement 실행"
+      example: "stmt.executeQuery(\"SELECT * FROM users\")"
+    
+    - name: "jpa_query_method"
+      pattern: "(\\w+)(?:By|And|Or)(\\w+)(?:\\([^)]*\\))?"
+      confidence: 0.85
+      description: "JPA Query Method"
+      example: "findByUserIdAndStatus(Long userId, String status)"
+    
+    - name: "mybatis_mapper_call"
+      pattern: "(\\w+)\\.(\\w+)\\s*\\([^)]*\\)"
+      confidence: 0.80
+      description: "MyBatis Mapper 호출"
+      example: "userMapper.selectUserById(userId)"
+    
+    - name: "jpa_native_query"
+      pattern: "@Query\\s*\\(\\s*value\\s*=\\s*[\"']([^\"']+)[\"']"
+      confidence: 0.90
+      description: "JPA Native Query"
+      example: "@Query(value = \"SELECT * FROM users WHERE status = ?1\")"
+
+  # 메서드 호출 관계 패턴들
+  method_call_patterns:
+    - name: "direct_method_call"
+      pattern: "(\\w+)\\.(\\w+)\\s*\\([^)]*\\)"
+      confidence: 0.95
+      description: "직접 메서드 호출"
+      example: "userService.findUserById(id)"
+    
+    - name: "static_method_call"
+      pattern: "(\\w+)\\.(\\w+)\\s*\\([^)]*\\)"
+      confidence: 0.90
+      description: "정적 메서드 호출"
+      example: "StringUtils.isEmpty(str)"
+    
+    - name: "constructor_call"
+      pattern: "new\\s+(\\w+)\\s*\\([^)]*\\)"
+      confidence: 0.95
+      description: "생성자 호출"
+      example: "new User(userId, userName)"
+
+  # 의존성 주입 패턴들
+  dependency_injection_patterns:
+    - name: "autowired_field"
+      pattern: "@Autowired\\s+(?:private|protected)?\\s*(?:static\\s+)?(?:final\\s+)?(\\w+)\\s+(\\w+)"
+      confidence: 0.95
+      description: "Autowired 필드"
+      example: "@Autowired private UserService userService;"
+    
+    - name: "autowired_constructor"
+      pattern: "@Autowired\\s+public\\s+(\\w+)\\s*\\([^)]*\\)"
+      confidence: 0.90
+      description: "Autowired 생성자"
+      example: "@Autowired public UserService(UserRepository userRepository)"
+    
+    - name: "resource_annotation"
+      pattern: "@Resource\\s+(?:private|protected)?\\s*(?:static\\s+)?(?:final\\s+)?(\\w+)\\s+(\\w+)"
+      confidence: 0.90
+      description: "Resource 어노테이션"
+      example: "@Resource private UserService userService;"
+
+  # API 엔드포인트 패턴들
+  api_endpoint_patterns:
+    - name: "rest_controller_method"
+      pattern: "@(?:GetMapping|PostMapping|PutMapping|DeleteMapping)\\s*\\(\\s*[\"']([^\"']+)[\"']"
+      confidence: 0.95
+      description: "REST Controller 메서드"
+      example: "@GetMapping(\"/api/users/{id}\")"
+    
+    - name: "request_mapping_method"
+      pattern: "@RequestMapping\\s*\\(\\s*[\"']([^\"']+)[\"']"
+      confidence: 0.90
+      description: "RequestMapping 메서드"
+      example: "@RequestMapping(\"/api/users\")"
+    
+    - name: "path_variable"
+      pattern: "@PathVariable\\s+(?:\\w+\\s+)?(\\w+)"
+      confidence: 0.95
+      description: "Path Variable"
+      example: "@PathVariable Long id"
+    
+    - name: "request_param"
+      pattern: "@RequestParam\\s+(?:\\w+\\s+)?(\\w+)"
+      confidence: 0.95
+      description: "Request Parameter"
+      example: "@RequestParam String name"
