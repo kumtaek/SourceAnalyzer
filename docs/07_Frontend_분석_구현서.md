@@ -17,6 +17,12 @@
 대상 파일: *.jsp, *.jsx, *.js, *.vue
 위치: src/main/webapp/, src/main/resources/static/
 패턴: **/*.jsp, **/*.jsx, **/*.js, **/*.vue
+
+기술별 분류:
+- JSP: 전통적인 Java Server Pages
+- JSX: React 컴포넌트 파일
+- Vue: Vue.js 단일 파일 컴포넌트
+- JS: JavaScript API 서비스 모듈
 ```
 
 ## 2. Frontend 분석 플로우
@@ -182,7 +188,17 @@ fetch('/api/users', {
 axios.get('/api/users');
 axios.post('/api/users', userData);
 
-// 패턴 3: jQuery AJAX
+// 패턴 3: Vue API 서비스 호출
+UserApiService.getAllUsers();
+ProductApiService.createProduct(productData);
+
+// 패턴 4: Vue 컴포넌트 내 API 호출
+async loadAllUsers() {
+    const response = await axios.get('/api/jpa/users');
+    this.users = response.data;
+}
+
+// 패턴 5: jQuery AJAX (레거시)
 $.get('/api/users');
 $.post('/api/users', userData);
 ```
