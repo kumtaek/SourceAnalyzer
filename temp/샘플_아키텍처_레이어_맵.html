@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SourceAnalyzer - 아키텍처 레이어 맵</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; background: #f8f9fa; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; text-align: center; }
+        .content { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .layer-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .layer-card { padding: 15px; border-radius: 8px; text-align: center; }
+        .frontend-layer { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); }
+        .api-layer { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); }
+        .business-layer { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); }
+        .data-layer { background: linear-gradient(135deg, #c3cfe2 0%, #c3cfe2 100%); }
+        .layer-number { font-size: 2em; font-weight: bold; color: #2c3e50; }
+        .layer-label { font-size: 1.1em; color: #34495e; margin-top: 5px; }
+        .mermaid { background: #fafafa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .layer-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 30px; }
+        .detail-card { background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #007bff; }
+        .component-list { list-style: none; padding: 0; }
+        .component-list li { padding: 8px; margin: 5px 0; background: white; border-radius: 4px; display: flex; justify-content: space-between; }
+        .complexity-high { border-left: 3px solid #dc3545; }
+        .complexity-medium { border-left: 3px solid #ffc107; }
+        .complexity-low { border-left: 3px solid #28a745; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏗️ 아키텍처 레이어 맵</h1>
+        <p>SampleSrc 프로젝트의 계층별 구조 분석 | 생성일: 2025-09-20 14:45:30</p>
+    </div>
+
+    <div class="content">
+        <div class="layer-stats">
+            <div class="layer-card frontend-layer">
+                <div class="layer-number">20</div>
+                <div class="layer-label">FRONTEND<br/>컴포넌트</div>
+            </div>
+            <div class="layer-card api-layer">
+                <div class="layer-number">28</div>
+                <div class="layer-label">API<br/>엔드포인트</div>
+            </div>
+            <div class="layer-card business-layer">
+                <div class="layer-number">45</div>
+                <div class="layer-label">BUSINESS<br/>로직</div>
+            </div>
+            <div class="layer-card data-layer">
+                <div class="layer-number">34</div>
+                <div class="layer-label">DATA<br/>액세스</div>
+            </div>
+        </div>
+
+        <div class="mermaid">
+flowchart TD
+    subgraph "🖥️ FRONTEND Layer"
+        JSP1["login.jsp<br/>로그인 화면"]
+        JSP2["userList.jsp<br/>사용자 목록"]
+        JSP3["productList.jsp<br/>상품 목록"]
+        JSX1["UserManagement.jsx<br/>사용자 관리"]
+        JSX2["ProductDashboard.jsx<br/>상품 대시보드"]
+    end
+    
+    subgraph "🌐 API Layer"
+        API1["/api/user/login<br/>로그인 API"]
+        API2["/api/user/list<br/>사용자 목록 API"]
+        API3["/api/product/search<br/>상품 검색 API"]
+        API4["/api/order/create<br/>주문 생성 API"]
+    end
+    
+    subgraph "⚙️ BUSINESS Layer"
+        CTRL1["UserController<br/>사용자 제어"]
+        CTRL2["ProductController<br/>상품 제어"]
+        SVC1["UserService<br/>사용자 서비스"]
+        SVC2["ProductService<br/>상품 서비스"]
+        SVC3["OrderService<br/>주문 서비스"]
+    end
+    
+    subgraph "💾 DATA Layer"
+        DAO1["UserDao<br/>사용자 DAO"]
+        DAO2["ProductDao<br/>상품 DAO"]
+        SQL1["SELECT * FROM USERS<br/>사용자 조회"]
+        SQL2["SELECT * FROM PRODUCTS<br/>상품 조회"]
+        TBL1[("USERS<br/>사용자 테이블")]
+        TBL2[("PRODUCTS<br/>상품 테이블")]
+        TBL3[("ORDERS<br/>주문 테이블")]
+    end
+    
+    %% Frontend → API 호출
+    JSP1 -->|AJAX 호출| API1
+    JSP2 -->|AJAX 호출| API2
+    JSX1 -->|REST 호출| API2
+    JSX2 -->|REST 호출| API3
+    
+    %% API → Controller 호출
+    API1 -->|요청 전달| CTRL1
+    API2 -->|요청 전달| CTRL1
+    API3 -->|요청 전달| CTRL2
+    API4 -->|요청 전달| CTRL2
+    
+    %% Controller → Service 호출
+    CTRL1 -->|비즈니스 로직| SVC1
+    CTRL2 -->|비즈니스 로직| SVC2
+    CTRL2 -->|주문 처리| SVC3
+    
+    %% Service → DAO 호출
+    SVC1 -->|데이터 접근| DAO1
+    SVC2 -->|데이터 접근| DAO2
+    SVC3 -->|데이터 접근| DAO1
+    SVC3 -->|데이터 접근| DAO2
+    
+    %% DAO → SQL → Table
+    DAO1 -->|쿼리 실행| SQL1
+    DAO2 -->|쿼리 실행| SQL2
+    SQL1 -->|테이블 접근| TBL1
+    SQL2 -->|테이블 접근| TBL2
+    SQL2 -->|조인 접근| TBL3
+    
+    %% 스타일링
+    style JSP1 fill:#ffcdd2
+    style JSP2 fill:#ffcdd2
+    style JSP3 fill:#ffcdd2
+    style JSX1 fill:#f8bbd9
+    style JSX2 fill:#f8bbd9
+    
+    style API1 fill:#b3e5fc
+    style API2 fill:#b3e5fc
+    style API3 fill:#b3e5fc
+    style API4 fill:#b3e5fc
+    
+    style CTRL1 fill:#fff3e0
+    style CTRL2 fill:#fff3e0
+    style SVC1 fill:#fff8e1
+    style SVC2 fill:#fff8e1
+    style SVC3 fill:#fff8e1
+    
+    style DAO1 fill:#e8f5e8
+    style DAO2 fill:#e8f5e8
+    style SQL1 fill:#f3e5f5
+    style SQL2 fill:#f3e5f5
+    style TBL1 fill:#e1f5fe
+    style TBL2 fill:#e1f5fe
+    style TBL3 fill:#e1f5fe
+        </div>
+
+        <div class="layer-details">
+            <div class="detail-card">
+                <h4>🖥️ Frontend Layer (20개)</h4>
+                <ul class="component-list">
+                    <li class="complexity-medium">login.jsp <span>중간 복잡도</span></li>
+                    <li class="complexity-low">userList.jsp <span>낮은 복잡도</span></li>
+                    <li class="complexity-high">productList.jsp <span>높은 복잡도</span></li>
+                    <li class="complexity-medium">UserManagement.jsx <span>중간 복잡도</span></li>
+                    <li class="complexity-medium">ProductDashboard.jsx <span>중간 복잡도</span></li>
+                </ul>
+            </div>
+
+            <div class="detail-card">
+                <h4>⚙️ Business Layer (45개)</h4>
+                <ul class="component-list">
+                    <li class="complexity-high">UserController <span>15개 메서드</span></li>
+                    <li class="complexity-high">ProductController <span>12개 메서드</span></li>
+                    <li class="complexity-medium">UserService <span>8개 메서드</span></li>
+                    <li class="complexity-medium">ProductService <span>10개 메서드</span></li>
+                    <li class="complexity-low">OrderService <span>6개 메서드</span></li>
+                </ul>
+            </div>
+
+            <div class="detail-card">
+                <h4>💾 Data Layer (34개)</h4>
+                <ul class="component-list">
+                    <li class="complexity-medium">UserDao <span>7개 쿼리</span></li>
+                    <li class="complexity-medium">ProductDao <span>9개 쿼리</span></li>
+                    <li class="complexity-high">OrderDao <span>11개 쿼리</span></li>
+                    <li class="complexity-low">CategoryDao <span>3개 쿼리</span></li>
+                </ul>
+            </div>
+
+            <div class="detail-card">
+                <h4>🌐 API Layer (28개)</h4>
+                <ul class="component-list">
+                    <li class="complexity-high">/api/user/* <span>12개 엔드포인트</span></li>
+                    <li class="complexity-medium">/api/product/* <span>8개 엔드포인트</span></li>
+                    <li class="complexity-medium">/api/order/* <span>6개 엔드포인트</span></li>
+                    <li class="complexity-low">/api/category/* <span>2개 엔드포인트</span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({startOnLoad: true});
+    </script>
+</body>
+</html>

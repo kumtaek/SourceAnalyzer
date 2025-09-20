@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SourceAnalyzer - 계층적 아키텍처 맵</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; background: #f8f9fa; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; text-align: center; }
+        .architecture-controls { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .control-tabs { display: flex; gap: 5px; margin-bottom: 20px; }
+        .tab { padding: 10px 20px; border: none; background: #e9ecef; cursor: pointer; border-radius: 5px 5px 0 0; }
+        .tab.active { background: #007bff; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .module-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin: 15px 0; }
+        .module-card { background: #f8f9fa; padding: 15px; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
+        .module-card:hover { background: #e3f2fd; transform: translateY(-2px); }
+        .module-card.selected { background: #1976d2; color: white; }
+        .module-name { font-weight: bold; font-size: 1.1em; margin-bottom: 5px; }
+        .module-stats { font-size: 0.9em; opacity: 0.8; }
+        .layer-view { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .layer-selector { max-height: 400px; overflow-y: auto; }
+        .layer-item { padding: 12px; margin: 8px 0; background: #f8f9fa; border-radius: 5px; cursor: pointer; }
+        .layer-item:hover { background: #e3f2fd; }
+        .layer-item.selected { background: #1976d2; color: white; }
+        .component-count { float: right; background: #007bff; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; }
+        .diagram-container { background: #fafafa; padding: 20px; border-radius: 8px; min-height: 400px; }
+        .breadcrumb { background: #e9ecef; padding: 10px 15px; border-radius: 5px; margin-bottom: 15px; font-size: 0.9em; }
+        .breadcrumb a { color: #007bff; text-decoration: none; cursor: pointer; }
+        .breadcrumb a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏗️ 계층적 아키텍처 맵</h1>
+        <p>대규모 프로젝트 대응 - 모듈별 드릴다운 아키텍처 분석</p>
+        <p><strong>EnterpriseApp</strong> | 15개 모듈 | 234개 클래스 | 1,567개 메서드</p>
+    </div>
+
+    <div class="architecture-controls">
+        <div class="control-tabs">
+            <button class="tab active" onclick="switchTab('overview')">📊 전체 개요</button>
+            <button class="tab" onclick="switchTab('module')">🏢 모듈별 분석</button>
+            <button class="tab" onclick="switchTab('layer')">🏗️ 레이어별 분석</button>
+            <button class="tab" onclick="switchTab('dependency')">🔗 의존성 분석</button>
+        </div>
+
+        <!-- 전체 개요 탭 -->
+        <div id="overview-tab" class="tab-content active">
+            <h4>🎯 전체 아키텍처 개요</h4>
+            <div class="module-grid">
+                <div class="module-card" onclick="selectModule('user')">
+                    <div class="module-name">👤 사용자 관리</div>
+                    <div class="module-stats">클래스: 45개 | 메서드: 234개 | JSP: 23개</div>
+                </div>
+                <div class="module-card" onclick="selectModule('product')">
+                    <div class="module-name">🛍️ 상품 관리</div>
+                    <div class="module-stats">클래스: 67개 | 메서드: 345개 | JSP: 34개</div>
+                </div>
+                <div class="module-card" onclick="selectModule('order')">
+                    <div class="module-name">📦 주문 처리</div>
+                    <div class="module-stats">클래스: 89개 | 메서드: 456개 | JSP: 45개</div>
+                </div>
+                <div class="module-card" onclick="selectModule('payment')">
+                    <div class="module-name">💳 결제 처리</div>
+                    <div class="module-stats">클래스: 34개 | 메서드: 178개 | JSP: 12개</div>
+                </div>
+                <div class="module-card" onclick="selectModule('inventory')">
+                    <div class="module-name">📊 재고 관리</div>
+                    <div class="module-stats">클래스: 23개 | 메서드: 123개 | JSP: 18개</div>
+                </div>
+                <div class="module-card" onclick="selectModule('admin')">
+                    <div class="module-name">⚙️ 관리자</div>
+                    <div class="module-stats">클래스: 56개 | 메서드: 289개 | JSP: 67개</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 모듈별 분석 탭 -->
+        <div id="module-tab" class="tab-content">
+            <div class="breadcrumb">
+                <a onclick="goHome()">🏠 전체</a> > 
+                <a onclick="selectModule('user')">👤 사용자 관리</a> > 
+                <span id="currentView">Controller 레이어</span>
+            </div>
+            
+            <div class="layer-view">
+                <div class="card">
+                    <h4>📋 레이어 선택</h4>
+                    <div class="layer-selector">
+                        <div class="layer-item selected" onclick="selectLayer('controller')">
+                            🎮 Controller 레이어
+                            <span class="component-count">8</span>
+                        </div>
+                        <div class="layer-item" onclick="selectLayer('service')">
+                            ⚙️ Service 레이어
+                            <span class="component-count">12</span>
+                        </div>
+                        <div class="layer-item" onclick="selectLayer('dao')">
+                            💾 DAO 레이어
+                            <span class="component-count">6</span>
+                        </div>
+                        <div class="layer-item" onclick="selectLayer('model')">
+                            📦 Model 레이어
+                            <span class="component-count">15</span>
+                        </div>
+                        <div class="layer-item" onclick="selectLayer('frontend')">
+                            🖥️ Frontend 레이어
+                            <span class="component-count">23</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h4 id="layerTitle">🎮 Controller 레이어 상세</h4>
+                    <div class="diagram-container">
+                        <div class="mermaid">
+flowchart TD
+    subgraph "사용자_관리_Controllers"
+        UC1["UserController<br/>15개 메서드"]
+        UC2["UserProfileController<br/>8개 메서드"]
+        UC3["UserAuthController<br/>6개 메서드"]
+    end
+    
+    subgraph "API_Endpoints"
+        API1["/api/user/*<br/>12개 엔드포인트"]
+        API2["/api/profile/*<br/>5개 엔드포인트"]
+        API3["/api/auth/*<br/>4개 엔드포인트"]
+    end
+    
+    subgraph "Service_Layer"
+        US1["UserService"]
+        US2["ProfileService"]
+        US3["AuthService"]
+    end
+    
+    UC1 --> API1
+    UC2 --> API2
+    UC3 --> API3
+    
+    UC1 --> US1
+    UC2 --> US2
+    UC3 --> US3
+    
+    style UC1 fill:#e3f2fd
+    style UC2 fill:#e3f2fd
+    style UC3 fill:#e3f2fd
+    style US1 fill:#fff3e0
+    style US2 fill:#fff3e0
+    style US3 fill:#fff3e0
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 레이어별 분석 탭 -->
+        <div id="layer-tab" class="tab-content">
+            <h4>🏗️ 전체 레이어 구조 (간소화 뷰)</h4>
+            <div class="chart-container">
+                <canvas id="layerOverviewChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 의존성 분석 탭 -->
+        <div id="dependency-tab" class="tab-content">
+            <h4>🔗 의존성 분석 (TOP 20만 표시)</h4>
+            <p>전체 15,234개 컴포넌트 중 의존성이 높은 상위 20개만 표시</p>
+            <div class="chart-container">
+                <canvas id="dependencyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({startOnLoad: true});
+
+        // 탭 전환
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
+
+        // 모듈 선택
+        function selectModule(module) {
+            document.querySelectorAll('.module-card').forEach(card => card.classList.remove('selected'));
+            event.target.classList.add('selected');
+            
+            alert(`${module} 모듈을 선택했습니다.\n\n해당 모듈의 상세 아키텍처를 로드합니다.`);
+            switchTab('module');
+        }
+
+        // 레이어 선택
+        function selectLayer(layer) {
+            document.querySelectorAll('.layer-item').forEach(item => item.classList.remove('selected'));
+            event.target.classList.add('selected');
+            
+            document.getElementById('currentView').textContent = layer + ' 레이어';
+            document.getElementById('layerTitle').textContent = `🎮 ${layer} 레이어 상세`;
+        }
+
+        // 레이어 개요 차트
+        const layerCtx = document.getElementById('layerOverviewChart').getContext('2d');
+        new Chart(layerCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Frontend', 'API', 'Controller', 'Service', 'DAO', 'Model'],
+                datasets: [{
+                    label: '컴포넌트 밀도',
+                    data: [234, 156, 89, 167, 78, 123],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    pointBackgroundColor: 'rgba(54, 162, 235, 1)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: { beginAtZero: true }
+                }
+            }
+        });
+
+        // 의존성 TOP 20 차트
+        const depCtx = document.getElementById('dependencyChart').getContext('2d');
+        new Chart(depCtx, {
+            type: 'bar',
+            data: {
+                labels: ['UserService', 'OrderService', 'ProductService', 'PaymentService', 'AuthService', 'InventoryService', 'NotificationService', 'ReportService'],
+                datasets: [{
+                    label: '의존성 점수',
+                    data: [95, 87, 82, 76, 71, 68, 45, 34],
+                    backgroundColor: ['#dc3545', '#dc3545', '#ffc107', '#ffc107', '#ffc107', '#28a745', '#28a745', '#28a745']
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { beginAtZero: true, max: 100 }
+                }
+            }
+        });
+
+        function goHome() {
+            switchTab('overview');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SourceAnalyzer - 데이터 플로우 다이어그램</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; background: #f8f9fa; }
+        .header { background: linear-gradient(135deg, #00cec9 0%, #55a3ff 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; text-align: center; }
+        .flow-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .full-width { grid-column: 1 / -1; }
+        .flow-diagram { background: #fafafa; padding: 20px; border-radius: 8px; }
+        .data-network { height: 500px; border: 2px solid #ddd; border-radius: 8px; }
+        .flow-controls { background: #e8f4f8; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .flow-controls select { padding: 8px; margin: 0 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .trace-button { background: #007bff; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; }
+        .data-path { display: flex; align-items: center; padding: 10px; margin: 5px 0; background: #f8f9fa; border-radius: 5px; }
+        .path-step { background: #007bff; color: white; padding: 5px 10px; border-radius: 3px; margin: 0 5px; font-size: 0.9em; }
+        .arrow { margin: 0 10px; color: #007bff; font-weight: bold; }
+        .data-volume { background: #28a745; color: white; padding: 3px 8px; border-radius: 3px; font-size: 0.8em; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌊 데이터 플로우 다이어그램</h1>
+        <p>데이터가 시스템을 통해 흘러가는 경로 추적 및 시각화</p>
+    </div>
+
+    <div class="flow-container">
+        <div class="card">
+            <h3>🎯 데이터 플로우 제어</h3>
+            <div class="flow-controls">
+                <label><strong>추적 대상 선택:</strong></label><br/>
+                <select id="dataTarget">
+                    <option value="user_data">사용자 정보 (USERS)</option>
+                    <option value="order_data">주문 정보 (ORDERS)</option>
+                    <option value="product_data">상품 정보 (PRODUCTS)</option>
+                </select>
+                <button class="trace-button" onclick="traceDataFlow()">🔍 추적</button>
+            </div>
+
+            <h4>📊 주요 데이터 플로우 경로</h4>
+            <div class="data-path">
+                <span class="path-step">login.jsp</span>
+                <span class="arrow">→</span>
+                <span class="path-step">UserController</span>
+                <span class="arrow">→</span>
+                <span class="path-step">UserService</span>
+                <span class="arrow">→</span>
+                <span class="path-step">USERS</span>
+                <span class="data-volume">15MB/day</span>
+            </div>
+            
+            <div class="data-path">
+                <span class="path-step">productList.jsp</span>
+                <span class="arrow">→</span>
+                <span class="path-step">ProductController</span>
+                <span class="arrow">→</span>
+                <span class="path-step">ProductService</span>
+                <span class="arrow">→</span>
+                <span class="path-step">PRODUCTS</span>
+                <span class="data-volume">8MB/day</span>
+            </div>
+            
+            <div class="data-path">
+                <span class="path-step">OrderForm.jsx</span>
+                <span class="arrow">→</span>
+                <span class="path-step">OrderController</span>
+                <span class="arrow">→</span>
+                <span class="path-step">OrderService</span>
+                <span class="arrow">→</span>
+                <span class="path-step">ORDERS</span>
+                <span class="data-volume">5MB/day</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>📈 데이터 볼륨 분석</h3>
+            <div class="chart-container">
+                <canvas id="dataVolumeChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card full-width">
+            <h3>🔗 전체 데이터 플로우 네트워크</h3>
+            <div id="dataFlowNetwork" class="data-network">
+                <svg width="100%" height="500" style="background: #fafafa;">
+                    <!-- 데이터 소스 -->
+                    <g transform="translate(50, 50)">
+                        <ellipse cx="60" cy="20" rx="60" ry="20" fill="#e74c3c"/>
+                        <text x="60" y="25" text-anchor="middle" fill="white" font-size="12">사용자 입력</text>
+                    </g>
+                    
+                    <!-- 처리 단계 -->
+                    <g transform="translate(250, 100)">
+                        <rect x="0" y="0" width="100" height="40" rx="5" fill="#3498db"/>
+                        <text x="50" y="25" text-anchor="middle" fill="white" font-size="11">데이터 검증</text>
+                    </g>
+                    <g transform="translate(250, 200)">
+                        <rect x="0" y="0" width="100" height="40" rx="5" fill="#3498db"/>
+                        <text x="50" y="25" text-anchor="middle" fill="white" font-size="11">비즈니스 로직</text>
+                    </g>
+                    
+                    <!-- 저장소 -->
+                    <g transform="translate(450, 150)">
+                        <ellipse cx="60" cy="20" rx="60" ry="20" fill="#2ecc71"/>
+                        <text x="60" y="25" text-anchor="middle" fill="white" font-size="11">USERS 테이블</text>
+                    </g>
+                    
+                    <!-- 출력 -->
+                    <g transform="translate(650, 100)">
+                        <ellipse cx="60" cy="20" rx="60" ry="20" fill="#f39c12"/>
+                        <text x="60" y="25" text-anchor="middle" fill="white" font-size="11">API 응답</text>
+                    </g>
+                    
+                    <!-- 연결선 -->
+                    <line x1="120" y1="70" x2="250" y2="120" stroke="#34495e" stroke-width="2" marker-end="url(#arrow)"/>
+                    <line x1="300" y1="140" x2="300" y2="200" stroke="#34495e" stroke-width="2" marker-end="url(#arrow)"/>
+                    <line x1="350" y1="220" x2="450" y2="170" stroke="#34495e" stroke-width="2" marker-end="url(#arrow)"/>
+                    <line x1="510" y1="170" x2="650" y2="120" stroke="#34495e" stroke-width="2" marker-end="url(#arrow)"/>
+                    
+                    <!-- 데이터 볼륨 표시 -->
+                    <text x="185" y="90" fill="#e74c3c" font-size="10" font-weight="bold">15MB/day</text>
+                    <text x="375" y="190" fill="#e74c3c" font-size="10" font-weight="bold">12MB/day</text>
+                    
+                    <defs>
+                        <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#34495e"/>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+        </div>
+
+        <div class="card full-width">
+            <h3>📋 사용자 정보 데이터 플로우 상세</h3>
+            <div class="flow-diagram">
+                <div class="mermaid">
+flowchart LR
+    subgraph "Frontend"
+        A1["login.jsp<br/>로그인 폼"]
+        A2["userList.jsp<br/>사용자 목록"]
+        A3["UserManagement.jsx<br/>사용자 관리"]
+    end
+    
+    subgraph "API_Gateway"
+        B1["/api/user/login<br/>로그인 API"]
+        B2["/api/user/list<br/>목록 API"]
+        B3["/api/user/update<br/>수정 API"]
+    end
+    
+    subgraph "Business_Logic"
+        C1["UserController<br/>사용자 제어"]
+        C2["UserService<br/>사용자 서비스"]
+        C3["AuthService<br/>인증 서비스"]
+    end
+    
+    subgraph "Data_Access"
+        D1["UserDao<br/>사용자 DAO"]
+        D2["UserMapper.xml<br/>MyBatis 매퍼"]
+    end
+    
+    subgraph "Database"
+        E1[("USERS<br/>사용자 테이블")]
+        E2[("USER_PROFILES<br/>프로필 테이블")]
+        E3[("USER_ROLES<br/>역할 테이블")]
+    end
+    
+    A1 --> B1
+    A2 --> B2
+    A3 --> B3
+    
+    B1 --> C1
+    B2 --> C1
+    B3 --> C1
+    
+    C1 --> C2
+    C1 --> C3
+    
+    C2 --> D1
+    C3 --> D1
+    
+    D1 --> D2
+    D2 --> E1
+    D2 --> E2
+    D2 --> E3
+    
+    style A1 fill:#ffcdd2
+    style A2 fill:#ffcdd2
+    style A3 fill:#ffcdd2
+    style B1 fill:#b3e5fc
+    style B2 fill:#b3e5fc
+    style B3 fill:#b3e5fc
+    style C1 fill:#fff3e0
+    style C2 fill:#fff3e0
+    style C3 fill:#fff3e0
+    style D1 fill:#e8f5e8
+    style D2 fill:#e8f5e8
+    style E1 fill:#f3e5f5
+    style E2 fill:#f3e5f5
+    style E3 fill:#f3e5f5
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({startOnLoad: true});
+
+        // 데이터 볼륨 차트
+        const volumeCtx = document.getElementById('dataVolumeChart').getContext('2d');
+        new Chart(volumeCtx, {
+            type: 'line',
+            data: {
+                labels: ['월', '화', '수', '목', '금', '토', '일'],
+                datasets: [{
+                    label: '사용자 데이터 (MB)',
+                    data: [12, 15, 18, 14, 22, 8, 6],
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    fill: true
+                }, {
+                    label: '상품 데이터 (MB)',
+                    data: [8, 10, 12, 9, 15, 5, 4],
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+
+        // 간단한 네트워크 표시
+        console.log('데이터 플로우 네트워크가 표시됩니다.');
+
+        function traceDataFlow() {
+            const target = document.getElementById('dataTarget').value;
+            alert(`${target} 데이터 플로우를 추적합니다.`);
+        }
+    </script>
+</body>
+</html>

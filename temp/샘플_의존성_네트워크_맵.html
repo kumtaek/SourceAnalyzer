@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SourceAnalyzer - 의존성 네트워크 맵</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; background: #f8f9fa; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; text-align: center; }
+        .controls { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .control-row { display: flex; gap: 20px; align-items: center; margin: 10px 0; }
+        .control-row label { font-weight: bold; min-width: 100px; }
+        .control-row select, .control-row input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .filter-button { background: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; }
+        .content { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .network-container { height: 600px; border: 2px solid #ddd; border-radius: 8px; position: relative; }
+        .network-legend { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 5px; font-size: 12px; }
+        .legend-item { display: flex; align-items: center; margin: 5px 0; }
+        .legend-color { width: 15px; height: 15px; border-radius: 50%; margin-right: 8px; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .stat-card { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; }
+        .stat-number { font-size: 1.8em; font-weight: bold; color: #007bff; }
+        .centrality-list { max-height: 300px; overflow-y: auto; }
+        .centrality-item { display: flex; justify-content: between; padding: 10px; margin: 5px 0; background: #f8f9fa; border-radius: 4px; }
+        .rank-1 { border-left: 4px solid #ffd700; background: #fffbf0; }
+        .rank-2 { border-left: 4px solid #c0c0c0; background: #f8f8f8; }
+        .rank-3 { border-left: 4px solid #cd7f32; background: #fdf6f0; }
+        .cluster-info { background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🕸️ 의존성 네트워크 맵</h1>
+        <p>컴포넌트 간 의존성 관계를 네트워크로 시각화 | SampleSrc 프로젝트</p>
+    </div>
+
+    <div class="controls">
+        <h3>🎛️ 네트워크 필터링</h3>
+        <div class="control-row">
+            <label>컴포넌트 타입:</label>
+            <select id="componentFilter">
+                <option value="all">전체</option>
+                <option value="class">클래스만</option>
+                <option value="method">메서드만</option>
+                <option value="sql">SQL만</option>
+                <option value="table">테이블만</option>
+            </select>
+            
+            <label>관계 타입:</label>
+            <select id="relationFilter">
+                <option value="all">전체 관계</option>
+                <option value="call">호출 관계</option>
+                <option value="inheritance">상속 관계</option>
+                <option value="usage">사용 관계</option>
+            </select>
+            
+            <button class="filter-button" onclick="applyFilter()">🔍 필터 적용</button>
+        </div>
+    </div>
+
+    <div class="content">
+        <div class="card">
+            <h3>🌐 의존성 네트워크</h3>
+            <div id="dependencyNetwork" class="network-container">
+                <div class="network-legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #e74c3c;"></div>
+                        <span>Controller 클래스</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #3498db;"></div>
+                        <span>Service 클래스</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #2ecc71;"></div>
+                        <span>DAO/Repository</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #9b59b6;"></div>
+                        <span>데이터베이스 테이블</span>
+                    </div>
+                </div>
+                
+                <!-- 간단한 네트워크 다이어그램으로 대체 -->
+                <svg width="100%" height="400" style="background: #fafafa; border-radius: 8px;">
+                    <!-- Controller Layer -->
+                    <g transform="translate(50, 50)">
+                        <rect x="0" y="0" width="120" height="40" rx="5" fill="#e74c3c"/>
+                        <text x="60" y="25" text-anchor="middle" fill="white" font-size="12">UserController</text>
+                    </g>
+                    <g transform="translate(200, 50)">
+                        <rect x="0" y="0" width="120" height="40" rx="5" fill="#e74c3c"/>
+                        <text x="60" y="25" text-anchor="middle" fill="white" font-size="12">ProductController</text>
+                    </g>
+                    
+                    <!-- Service Layer -->
+                    <g transform="translate(50, 150)">
+                        <rect x="0" y="0" width="120" height="40" rx="5" fill="#3498db"/>
+                        <text x="60" y="25" text-anchor="middle" fill="white" font-size="12">UserService</text>
+                    </g>
+                    <g transform="translate(200, 150)">
+                        <rect x="0" y="0" width="120" height="40" rx="5" fill="#3498db"/>
+                        <text x="60" y="25" text-anchor="middle" fill="white" font-size="12">ProductService</text>
+                    </g>
+                    
+                    <!-- DAO Layer -->
+                    <g transform="translate(50, 250)">
+                        <rect x="0" y="0" width="120" height="40" rx="5" fill="#2ecc71"/>
+                        <text x="60" y="25" text-anchor="middle" fill="white" font-size="12">UserDao</text>
+                    </g>
+                    <g transform="translate(200, 250)">
+                        <rect x="0" y="0" width="120" height="40" rx="5" fill="#2ecc71"/>
+                        <text x="60" y="25" text-anchor="middle" fill="white" font-size="12">ProductDao</text>
+                    </g>
+                    
+                    <!-- Table Layer -->
+                    <g transform="translate(50, 350)">
+                        <ellipse cx="60" cy="20" rx="60" ry="20" fill="#9b59b6"/>
+                        <text x="60" y="25" text-anchor="middle" fill="white" font-size="12">USERS</text>
+                    </g>
+                    <g transform="translate(200, 350)">
+                        <ellipse cx="60" cy="20" rx="60" ry="20" fill="#9b59b6"/>
+                        <text x="60" y="25" text-anchor="middle" fill="white" font-size="12">PRODUCTS</text>
+                    </g>
+                    
+                    <!-- 연결선들 -->
+                    <line x1="110" y1="90" x2="110" y2="150" stroke="#34495e" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <line x1="260" y1="90" x2="260" y2="150" stroke="#34495e" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <line x1="110" y1="190" x2="110" y2="250" stroke="#34495e" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <line x1="260" y1="190" x2="260" y2="250" stroke="#34495e" stroke-width="2" marker-end="url(#arrowhead)"/>
+                    <line x1="110" y1="290" x2="110" y2="330" stroke="#95a5a6" stroke-width="1" stroke-dasharray="5,5" marker-end="url(#arrowhead)"/>
+                    <line x1="260" y1="290" x2="260" y2="330" stroke="#95a5a6" stroke-width="1" stroke-dasharray="5,5" marker-end="url(#arrowhead)"/>
+                    
+                    <!-- 화살표 마커 정의 -->
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#34495e"/>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>📊 네트워크 분석</h3>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">127</div>
+                    <div>총 노드 수</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">234</div>
+                    <div>총 연결 수</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">8</div>
+                    <div>클러스터 수</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">3.2</div>
+                    <div>평균 연결도</div>
+                </div>
+            </div>
+
+            <h4>🏆 중심성 분석 (가장 중요한 컴포넌트)</h4>
+            <div class="centrality-list">
+                <div class="centrality-item rank-1">
+                    <strong>UserService</strong>
+                    <span>중심성: 0.92</span>
+                </div>
+                <div class="centrality-item rank-2">
+                    <strong>USERS 테이블</strong>
+                    <span>중심성: 0.87</span>
+                </div>
+                <div class="centrality-item rank-3">
+                    <strong>UserController</strong>
+                    <span>중심성: 0.81</span>
+                </div>
+                <div class="centrality-item">
+                    <strong>ProductService</strong>
+                    <span>중심성: 0.76</span>
+                </div>
+                <div class="centrality-item">
+                    <strong>OrderService</strong>
+                    <span>중심성: 0.69</span>
+                </div>
+                <div class="centrality-item">
+                    <strong>PRODUCTS 테이블</strong>
+                    <span>중심성: 0.64</span>
+                </div>
+            </div>
+
+            <div class="cluster-info">
+                <h4>🎯 주요 클러스터</h4>
+                <ul>
+                    <li><strong>사용자 관리 클러스터</strong>: UserController, UserService, UserDao, USERS 테이블</li>
+                    <li><strong>상품 관리 클러스터</strong>: ProductController, ProductService, ProductDao, PRODUCTS 테이블</li>
+                    <li><strong>주문 처리 클러스터</strong>: OrderController, OrderService, ORDERS/ORDER_ITEMS 테이블</li>
+                    <li><strong>인증 클러스터</strong>: LoginService, AuthService, USER_ROLES 테이블</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function applyFilter() {
+            const componentType = document.getElementById('componentFilter').value;
+            const relationType = document.getElementById('relationFilter').value;
+            
+            // 필터 적용 로직 (실제 구현에서는 메타DB 쿼리)
+            alert(`필터 적용: 컴포넌트=${componentType}, 관계=${relationType}\n\n네트워크 다이어그램이 업데이트됩니다.`);
+        }
+    </script>
+</body>
+</html>

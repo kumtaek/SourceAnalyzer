@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SourceAnalyzer - 스마트 영향도 분석</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; background: #f8f9fa; }
+        .header { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; text-align: center; }
+        .analysis-setup { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .setup-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+        .setup-section { background: #f8f9fa; padding: 15px; border-radius: 8px; }
+        .setup-section h4 { margin-top: 0; color: #2c3e50; }
+        .target-selector { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 5px 0; }
+        .analyze-btn { background: #e74c3c; color: white; padding: 12px 25px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; }
+        .analyze-btn:hover { background: #c0392b; }
+        .results-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .full-width { grid-column: 1 / -1; }
+        .impact-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 15px 0; }
+        .impact-metric { background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center; }
+        .impact-number { font-size: 2em; font-weight: bold; color: #1976d2; }
+        .impact-level { padding: 10px; margin: 8px 0; border-radius: 5px; }
+        .level-1 { background: #ffebee; border-left: 4px solid #f44336; }
+        .level-2 { background: #fff3e0; border-left: 4px solid #ff9800; }
+        .level-3 { background: #e8f5e8; border-left: 4px solid #4caf50; }
+        .component-tree { max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 0.9em; }
+        .tree-item { padding: 5px 0; }
+        .tree-level-1 { margin-left: 0px; color: #e74c3c; font-weight: bold; }
+        .tree-level-2 { margin-left: 20px; color: #f39c12; }
+        .tree-level-3 { margin-left: 40px; color: #2ecc71; }
+        .tree-level-4 { margin-left: 60px; color: #95a5a6; }
+        .impact-path { background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 5px 0; font-family: monospace; }
+        .risk-assessment { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin: 15px 0; }
+        .risk-card { padding: 15px; border-radius: 8px; text-align: center; }
+        .risk-high { background: #ffebee; border: 2px solid #f44336; }
+        .risk-medium { background: #fff3e0; border: 2px solid #ff9800; }
+        .risk-low { background: #e8f5e8; border: 2px solid #4caf50; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 스마트 영향도 분석</h1>
+        <p>대규모 프로젝트 대응 - 선택적 영향도 분석 | EnterpriseApp</p>
+    </div>
+
+    <div class="analysis-setup">
+        <h3>🔍 분석 대상 선택 (대규모 데이터 대응)</h3>
+        
+        <div class="setup-grid">
+            <div class="setup-section">
+                <h4>1️⃣ 변경 대상 선택</h4>
+                <select class="target-selector" id="changeType">
+                    <option value="">변경 유형 선택...</option>
+                    <option value="table">데이터베이스 테이블</option>
+                    <option value="column">테이블 컬럼</option>
+                    <option value="api">API 엔드포인트</option>
+                    <option value="class">Java 클래스</option>
+                    <option value="method">Java 메서드</option>
+                </select>
+                
+                <input type="text" class="target-selector" id="targetSearch" placeholder="검색어 입력 (예: USERS, UserService)" onkeyup="searchTargets(this.value)">
+                
+                <select class="target-selector" id="targetList" size="5">
+                    <option value="USERS">USERS 테이블 (15개 쿼리에서 사용)</option>
+                    <option value="PRODUCTS">PRODUCTS 테이블 (12개 쿼리에서 사용)</option>
+                    <option value="ORDERS">ORDERS 테이블 (18개 쿼리에서 사용)</option>
+                    <option value="USER_PROFILES">USER_PROFILES 테이블 (3개 쿼리에서 사용)</option>
+                    <option value="CATEGORIES">CATEGORIES 테이블 (7개 쿼리에서 사용)</option>
+                </select>
+            </div>
+            
+            <div class="setup-section">
+                <h4>2️⃣ 분석 범위 설정</h4>
+                <select class="target-selector" id="analysisDepth">
+                    <option value="3">3단계 (직접 영향만)</option>
+                    <option value="5" selected>5단계 (간접 영향 포함)</option>
+                    <option value="7">7단계 (전체 체인)</option>
+                    <option value="all">제한 없음 (전체)</option>
+                </select>
+                
+                <select class="target-selector" id="moduleScope">
+                    <option value="all">전체 모듈</option>
+                    <option value="current">현재 모듈만</option>
+                    <option value="related">관련 모듈만</option>
+                </select>
+                
+                <div style="margin: 10px 0;">
+                    <label><input type="checkbox" checked> Frontend 포함</label><br/>
+                    <label><input type="checkbox" checked> Backend 포함</label><br/>
+                    <label><input type="checkbox" checked> Database 포함</label>
+                </div>
+            </div>
+            
+            <div class="setup-section">
+                <h4>3️⃣ 결과 필터링</h4>
+                <select class="target-selector" id="resultLimit">
+                    <option value="20">상위 20개만</option>
+                    <option value="50" selected>상위 50개만</option>
+                    <option value="100">상위 100개만</option>
+                    <option value="all">전체 결과</option>
+                </select>
+                
+                <select class="target-selector" id="riskLevel">
+                    <option value="all">전체 위험도</option>
+                    <option value="high">높은 위험도만</option>
+                    <option value="medium">중간 위험도 이상</option>
+                </select>
+                
+                <button class="analyze-btn" onclick="startSmartAnalysis()">🚀 스마트 분석 시작</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="results-container">
+        <div class="card">
+            <h3>📊 영향도 요약</h3>
+            
+            <div class="impact-summary">
+                <div class="impact-metric">
+                    <div class="impact-number">47</div>
+                    <div>직접 영향</div>
+                </div>
+                <div class="impact-metric">
+                    <div class="impact-number">156</div>
+                    <div>간접 영향</div>
+                </div>
+                <div class="impact-metric">
+                    <div class="impact-number">89</div>
+                    <div>연쇄 영향</div>
+                </div>
+                <div class="impact-metric">
+                    <div class="impact-number">23</div>
+                    <div>모듈 수</div>
+                </div>
+            </div>
+
+            <div class="impact-level level-1">
+                <h4>🚨 즉시 수정 필요 (47개)</h4>
+                <p>직접적으로 영향받는 핵심 컴포넌트들</p>
+                <div style="font-size: 0.9em;">
+                    • SQL 쿼리: 15개<br/>
+                    • Java 메서드: 18개<br/>
+                    • JSP 화면: 8개<br/>
+                    • API 엔드포인트: 6개
+                </div>
+            </div>
+
+            <div class="impact-level level-2">
+                <h4>⚠️ 테스트 필요 (156개)</h4>
+                <p>간접적으로 영향받을 수 있는 컴포넌트들</p>
+                <div style="font-size: 0.9em;">
+                    • Service 클래스: 23개<br/>
+                    • Controller 클래스: 45개<br/>
+                    • DTO 클래스: 67개<br/>
+                    • Frontend 컴포넌트: 21개
+                </div>
+            </div>
+
+            <div class="impact-level level-3">
+                <h4>ℹ️ 모니터링 권장 (89개)</h4>
+                <p>연쇄적으로 영향받을 가능성이 있는 컴포넌트들</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🎯 영향도 분포</h3>
+            <div class="chart-container">
+                <canvas id="impactDistributionChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card full-width">
+            <h3>🌳 영향 전파 트리 (선택적 표시)</h3>
+            
+            <div style="margin-bottom: 15px;">
+                <button onclick="expandTree('level1')" style="margin: 5px; padding: 5px 10px; border: none; background: #dc3545; color: white; border-radius: 3px; cursor: pointer;">
+                    1단계만 보기
+                </button>
+                <button onclick="expandTree('level2')" style="margin: 5px; padding: 5px 10px; border: none; background: #ffc107; color: white; border-radius: 3px; cursor: pointer;">
+                    2단계까지 보기
+                </button>
+                <button onclick="expandTree('all')" style="margin: 5px; padding: 5px 10px; border: none; background: #28a745; color: white; border-radius: 3px; cursor: pointer;">
+                    전체 보기
+                </button>
+            </div>
+            
+            <div class="component-tree" id="impactTree">
+                <div class="tree-item tree-level-1">📋 USERS 테이블 (변경 대상)</div>
+                <div class="tree-item tree-level-2">  ├── 🔍 UserMapper.xml (selectUserByUsername)</div>
+                <div class="tree-item tree-level-2">  ├── 🔍 UserMapper.xml (updateUserInfo)</div>
+                <div class="tree-item tree-level-2">  ├── 🔍 AuthMapper.xml (authenticateUser)</div>
+                <div class="tree-item tree-level-3">  │   ├── ⚙️ UserDao.findByUsername()</div>
+                <div class="tree-item tree-level-3">  │   ├── ⚙️ UserDao.updateUser()</div>
+                <div class="tree-item tree-level-3">  │   └── ⚙️ AuthDao.authenticate()</div>
+                <div class="tree-item tree-level-4">  │       ├── 🏢 UserService.authenticateUser()</div>
+                <div class="tree-item tree-level-4">  │       ├── 🏢 UserService.updateUserProfile()</div>
+                <div class="tree-item tree-level-4">  │       └── 🏢 AuthService.login()</div>
+                <div class="tree-item tree-level-4">  │           ├── 🎮 UserController.login()</div>
+                <div class="tree-item tree-level-4">  │           ├── 🎮 UserController.updateProfile()</div>
+                <div class="tree-item tree-level-4">  │           └── 🎮 AuthController.authenticate()</div>
+                <div class="tree-item tree-level-4">  │               ├── 🌐 /api/user/login</div>
+                <div class="tree-item tree-level-4">  │               ├── 🌐 /api/user/profile</div>
+                <div class="tree-item tree-level-4">  │               └── 🌐 /api/auth/login</div>
+                <div class="tree-item tree-level-4">  │                   ├── 🖥️ login.jsp</div>
+                <div class="tree-item tree-level-4">  │                   ├── 🖥️ userProfile.jsp</div>
+                <div class="tree-item tree-level-4">  │                   ├── 🖥️ UserManagement.jsx</div>
+                <div class="tree-item tree-level-4">  │                   └── 🖥️ AuthComponent.jsx</div>
+                <div style="margin: 10px 0; color: #95a5a6; font-style: italic;">
+                    ... 총 292개 컴포넌트 중 상위 20개만 표시 (나머지는 "전체 보기" 클릭)
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>⚡ 예상 작업 시간</h3>
+            <div class="chart-container">
+                <canvas id="workloadChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🎯 리스크 평가</h3>
+            
+            <div class="risk-assessment">
+                <div class="risk-card risk-high">
+                    <h4>🚨 높은 위험</h4>
+                    <div style="font-size: 1.5em; font-weight: bold;">47개</div>
+                    <p>즉시 수정 필요</p>
+                </div>
+                <div class="risk-card risk-medium">
+                    <h4>⚠️ 중간 위험</h4>
+                    <div style="font-size: 1.5em; font-weight: bold;">156개</div>
+                    <p>테스트 필요</p>
+                </div>
+                <div class="risk-card risk-low">
+                    <h4>✅ 낮은 위험</h4>
+                    <div style="font-size: 1.5em; font-weight: bold;">89개</div>
+                    <p>모니터링만</p>
+                </div>
+            </div>
+            
+            <h4>📋 핵심 영향 경로 (상위 5개만 표시)</h4>
+            <div class="impact-path">
+                <strong>경로 1:</strong> USERS → UserMapper.xml → UserDao → UserService → UserController → /api/user/login → login.jsp
+            </div>
+            <div class="impact-path">
+                <strong>경로 2:</strong> USERS → AuthMapper.xml → AuthDao → AuthService → AuthController → /api/auth/* → 인증 화면들
+            </div>
+            <div class="impact-path">
+                <strong>경로 3:</strong> USERS → UserProfileMapper.xml → UserDao → UserService → ProfileController → 프로필 관련 화면들
+            </div>
+            <div style="text-align: center; margin: 10px 0;">
+                <button onclick="showAllPaths()" style="padding: 8px 15px; border: none; background: #007bff; color: white; border-radius: 3px; cursor: pointer;">
+                    전체 292개 경로 보기
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 영향도 분포 차트
+        const impactCtx = document.getElementById('impactDistributionChart').getContext('2d');
+        new Chart(impactCtx, {
+            type: 'bar',
+            data: {
+                labels: ['직접 영향', '간접 영향', '연쇄 영향', '모니터링'],
+                datasets: [{
+                    label: '컴포넌트 수',
+                    data: [47, 156, 89, 23],
+                    backgroundColor: ['#dc3545', '#ffc107', '#28a745', '#6c757d']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true }
+                },
+                onClick: function(event, elements) {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const levels = ['직접', '간접', '연쇄', '모니터링'];
+                        showDetailedImpact(levels[index]);
+                    }
+                }
+            }
+        });
+
+        // 작업 시간 예측 차트
+        const workloadCtx = document.getElementById('workloadChart').getContext('2d');
+        new Chart(workloadCtx, {
+            type: 'bar',
+            data: {
+                labels: ['코드 수정', '테스트 작성', '문서 업데이트', '배포 준비'],
+                datasets: [{
+                    label: '예상 시간 (시간)',
+                    data: [24, 16, 8, 4],
+                    backgroundColor: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4']
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { beginAtZero: true }
+                }
+            }
+        });
+
+        // 대규모 대응 함수들
+        function searchTargets(query) {
+            if (query.length > 2) {
+                // 실시간 검색 (메타DB LIKE 쿼리)
+                console.log(`검색: ${query}`);
+                // 실제 구현: SELECT * FROM components WHERE component_name LIKE '%${query}%' LIMIT 50
+            }
+        }
+
+        function startSmartAnalysis() {
+            const changeType = document.getElementById('changeType').value;
+            const target = document.getElementById('targetList').value;
+            const depth = document.getElementById('analysisDepth').value;
+            
+            if (!changeType || !target) {
+                alert('변경 유형과 대상을 선택해주세요.');
+                return;
+            }
+            
+            alert(`스마트 영향도 분석을 시작합니다.\n\n대상: ${target}\n깊이: ${depth}단계\n\n분석 중... (대규모 데이터 처리)`);
+            
+            // 실제 구현에서는 메타DB 재귀 쿼리 실행
+            // WITH RECURSIVE impact_analysis AS (...)
+        }
+
+        function expandTree(level) {
+            const tree = document.getElementById('impactTree');
+            const items = tree.querySelectorAll('.tree-item');
+            
+            items.forEach(item => {
+                if (level === 'level1') {
+                    item.style.display = item.classList.contains('tree-level-1') ? 'block' : 'none';
+                } else if (level === 'level2') {
+                    item.style.display = (item.classList.contains('tree-level-1') || item.classList.contains('tree-level-2')) ? 'block' : 'none';
+                } else {
+                    item.style.display = 'block';
+                }
+            });
+        }
+
+        function showDetailedImpact(level) {
+            alert(`${level} 영향 컴포넌트들의 상세 정보를 표시합니다.\n\n새 창에서 해당 레벨의 상세 분석 결과가 열립니다.`);
+        }
+
+        function showAllPaths() {
+            alert('전체 292개 영향 경로를 표시합니다.\n\n페이지네이션된 상세 뷰가 열립니다.');
+        }
+    </script>
+</body>
+</html>

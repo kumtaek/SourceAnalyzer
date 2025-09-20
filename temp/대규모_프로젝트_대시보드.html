@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SourceAnalyzer - 대규모 프로젝트 대시보드</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; text-align: center; }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .metric-card { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; text-align: center; }
+        .metric-number { font-size: 2.5em; font-weight: bold; margin: 10px 0; }
+        .metric-label { font-size: 1.1em; opacity: 0.9; }
+        .chart-container { height: 300px; position: relative; }
+        .filter-section { background: #e8f4f8; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .filter-row { display: flex; gap: 15px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
+        .filter-row select, .filter-row input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .apply-filter { background: #007bff; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; }
+        .top-items { max-height: 250px; overflow-y: auto; }
+        .top-item { display: flex; justify-content: space-between; padding: 8px; margin: 5px 0; background: #f8f9fa; border-radius: 3px; }
+        .risk-critical { border-left: 4px solid #dc3545; background: #fff5f5; }
+        .risk-warning { border-left: 4px solid #ffc107; background: #fffbf0; }
+        .risk-normal { border-left: 4px solid #28a745; background: #f8fff8; }
+        .pagination { display: flex; justify-content: center; gap: 10px; margin: 15px 0; }
+        .page-btn { padding: 8px 12px; border: 1px solid #ddd; background: white; cursor: pointer; border-radius: 3px; }
+        .page-btn.active { background: #007bff; color: white; }
+        .search-box { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 대규모 프로젝트 대시보드</h1>
+        <p>EnterpriseApp 프로젝트 | 생성일: 2025-09-20 15:30:25</p>
+        <p><strong>규모</strong>: 파일 2,847개 | 컴포넌트 15,234개 | 테이블 156개</p>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- 전체 통계 (확장 가능한 메트릭) -->
+        <div class="card metric-card">
+            <div class="metric-number">15,234</div>
+            <div class="metric-label">총 컴포넌트</div>
+        </div>
+        
+        <div class="card metric-card">
+            <div class="metric-number">2,847</div>
+            <div class="metric-label">총 파일</div>
+        </div>
+        
+        <div class="card metric-card">
+            <div class="metric-number">156</div>
+            <div class="metric-label">DB 테이블</div>
+        </div>
+        
+        <div class="card metric-card">
+            <div class="metric-number">1,245</div>
+            <div class="metric-label">API 엔드포인트</div>
+        </div>
+
+        <!-- 스마트 필터링이 가능한 파일 분포 -->
+        <div class="card">
+            <h3>📁 파일 타입 분포 (필터링 가능)</h3>
+            
+            <div class="filter-section">
+                <div class="filter-row">
+                    <label><strong>모듈 선택:</strong></label>
+                    <select id="moduleFilter">
+                        <option value="all">전체 모듈</option>
+                        <option value="user">사용자 관리</option>
+                        <option value="product">상품 관리</option>
+                        <option value="order">주문 처리</option>
+                        <option value="admin">관리자</option>
+                    </select>
+                    
+                    <label><strong>레이어:</strong></label>
+                    <select id="layerFilter">
+                        <option value="all">전체</option>
+                        <option value="frontend">Frontend</option>
+                        <option value="backend">Backend</option>
+                        <option value="data">Data</option>
+                    </select>
+                    
+                    <button class="apply-filter" onclick="applyDashboardFilter()">🔍 적용</button>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="scalableFileChart"></canvas>
+            </div>
+        </div>
+
+        <!-- TOP N 방식의 핫스팟 -->
+        <div class="card">
+            <h3>🔥 핫스팟 TOP 20 (페이지네이션)</h3>
+            
+            <input type="text" class="search-box" placeholder="컴포넌트명 검색..." onkeyup="searchComponents(this.value)">
+            
+            <div class="top-items" id="hotspotList">
+                <div class="top-item risk-critical">
+                    <span><strong>OrderProcessingService.processComplexOrder()</strong></span>
+                    <span>🚨 347회 호출</span>
+                </div>
+                <div class="top-item risk-critical">
+                    <span><strong>UserAuthenticationService.authenticate()</strong></span>
+                    <span>🚨 289회 호출</span>
+                </div>
+                <div class="top-item risk-warning">
+                    <span><strong>ProductSearchService.searchProducts()</strong></span>
+                    <span>⚠️ 156회 호출</span>
+                </div>
+                <div class="top-item risk-warning">
+                    <span><strong>PaymentProcessingService.processPayment()</strong></span>
+                    <span>⚠️ 134회 호출</span>
+                </div>
+                <div class="top-item risk-normal">
+                    <span><strong>InventoryService.updateStock()</strong></span>
+                    <span>✅ 89회 호출</span>
+                </div>
+                <!-- 더 많은 항목들... -->
+            </div>
+            
+            <div class="pagination">
+                <button class="page-btn active" onclick="loadPage(1)">1</button>
+                <button class="page-btn" onclick="loadPage(2)">2</button>
+                <button class="page-btn" onclick="loadPage(3)">3</button>
+                <button class="page-btn" onclick="loadPage(4)">4</button>
+                <span>...</span>
+                <button class="page-btn" onclick="loadPage(25)">25</button>
+            </div>
+        </div>
+
+        <!-- 모듈별 집계 (확장 가능) -->
+        <div class="card">
+            <h3>🏗️ 모듈별 현황 (드릴다운 가능)</h3>
+            <div class="chart-container">
+                <canvas id="moduleBreakdownChart"></canvas>
+            </div>
+            
+            <div style="margin-top: 15px;">
+                <button onclick="drillDown('user')" style="margin: 5px; padding: 8px 12px; border: none; background: #007bff; color: white; border-radius: 3px; cursor: pointer;">
+                    사용자 모듈 상세보기
+                </button>
+                <button onclick="drillDown('product')" style="margin: 5px; padding: 8px 12px; border: none; background: #28a745; color: white; border-radius: 3px; cursor: pointer;">
+                    상품 모듈 상세보기
+                </button>
+                <button onclick="drillDown('order')" style="margin: 5px; padding: 8px 12px; border: none; background: #ffc107; color: white; border-radius: 3px; cursor: pointer;">
+                    주문 모듈 상세보기
+                </button>
+            </div>
+        </div>
+
+        <!-- 문제 영역 요약 (우선순위 기반) -->
+        <div class="card">
+            <h3>⚠️ 주의 필요 영역 (우선순위별)</h3>
+            
+            <div class="filter-section">
+                <div class="filter-row">
+                    <label><strong>문제 유형:</strong></label>
+                    <select id="issueTypeFilter">
+                        <option value="all">전체</option>
+                        <option value="complexity">복잡도 높음</option>
+                        <option value="error">파싱 오류</option>
+                        <option value="unused">미사용 컴포넌트</option>
+                        <option value="hotspot">과도한 호출</option>
+                    </select>
+                    
+                    <label><strong>심각도:</strong></label>
+                    <select id="severityFilter">
+                        <option value="all">전체</option>
+                        <option value="critical">심각</option>
+                        <option value="warning">경고</option>
+                        <option value="info">정보</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="top-items">
+                <div class="top-item risk-critical">
+                    <div>
+                        <strong>복잡도 초과</strong><br/>
+                        <small>OrderProcessingService.java - 45개 메서드, 복잡도 12.8</small>
+                    </div>
+                    <span>🚨 심각</span>
+                </div>
+                <div class="top-item risk-critical">
+                    <div>
+                        <strong>순환 의존성</strong><br/>
+                        <small>UserService ↔ AuthService ↔ UserDao</small>
+                    </div>
+                    <span>🚨 심각</span>
+                </div>
+                <div class="top-item risk-warning">
+                    <div>
+                        <strong>고아 테이블</strong><br/>
+                        <small>TEMP_DATA, LOG_ARCHIVE (사용 안됨)</small>
+                    </div>
+                    <span>⚠️ 경고</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 성능 지표 (대규모 고려) -->
+        <div class="card">
+            <h3>⚡ 성능 지표</h3>
+            <div class="chart-container">
+                <canvas id="performanceChart"></canvas>
+            </div>
+            
+            <div style="margin-top: 15px; font-size: 0.9em;">
+                <p><strong>분석 시간</strong>: 15분 23초 (2,847개 파일)</p>
+                <p><strong>메모리 사용량</strong>: 1.2GB (피크)</p>
+                <p><strong>파싱 성공률</strong>: 96.8% (14,747/15,234)</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 확장 가능한 파일 분포 차트
+        const fileCtx = document.getElementById('scalableFileChart').getContext('2d');
+        let fileChart = new Chart(fileCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Java (1,234)', 'JSP (567)', 'XML (345)', 'JSX (234)', 'CSS (156)', 'JS (311)'],
+                datasets: [{
+                    data: [1234, 567, 345, 234, 156, 311],
+                    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.parsed * 100) / total).toFixed(1);
+                                return `${context.label}: ${percentage}%`;
+                            }
+                        }
+                    }
+                },
+                onClick: function(event, elements) {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const fileType = ['Java', 'JSP', 'XML', 'JSX', 'CSS', 'JS'][index];
+                        drillDownFileType(fileType);
+                    }
+                }
+            }
+        });
+
+        // 모듈별 분석 차트 (드릴다운 가능)
+        const moduleCtx = document.getElementById('moduleBreakdownChart').getContext('2d');
+        new Chart(moduleCtx, {
+            type: 'bar',
+            data: {
+                labels: ['사용자관리 (456)', '상품관리 (389)', '주문처리 (567)', '결제처리 (234)', '관리자 (123)'],
+                datasets: [{
+                    label: '컴포넌트 수',
+                    data: [456, 389, 567, 234, 123],
+                    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { beginAtZero: true }
+                },
+                onClick: function(event, elements) {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const modules = ['user', 'product', 'order', 'payment', 'admin'];
+                        drillDown(modules[index]);
+                    }
+                }
+            }
+        });
+
+        // 성능 지표 차트
+        const perfCtx = document.getElementById('performanceChart').getContext('2d');
+        new Chart(perfCtx, {
+            type: 'line',
+            data: {
+                labels: ['1K', '5K', '10K', '15K', '20K', '25K'],
+                datasets: [{
+                    label: '분석 시간 (분)',
+                    data: [2, 8, 15, 23, 35, 52],
+                    borderColor: '#FF6384',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    fill: true
+                }, {
+                    label: '메모리 사용량 (GB)',
+                    data: [0.2, 0.6, 1.2, 1.8, 2.5, 3.2],
+                    borderColor: '#36A2EB',
+                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { title: { display: true, text: '컴포넌트 수' } },
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+
+        // 대규모 대응 함수들
+        function applyDashboardFilter() {
+            const module = document.getElementById('moduleFilter').value;
+            const layer = document.getElementById('layerFilter').value;
+            
+            // 실제 구현에서는 메타DB 쿼리로 필터링
+            alert(`필터 적용: 모듈=${module}, 레이어=${layer}\n\n차트가 동적으로 업데이트됩니다.`);
+            
+            // 예시: 사용자 모듈만 필터링
+            if (module === 'user') {
+                fileChart.data.labels = ['Java (234)', 'JSP (89)', 'XML (45)', 'JSX (23)'];
+                fileChart.data.datasets[0].data = [234, 89, 45, 23];
+                fileChart.update();
+            }
+        }
+
+        function drillDown(module) {
+            alert(`${module} 모듈 상세 분석을 시작합니다.\n\n새 창에서 모듈별 상세 리포트가 열립니다.`);
+            // 실제 구현: window.open(`module_detail.html?module=${module}`)
+        }
+
+        function drillDownFileType(fileType) {
+            alert(`${fileType} 파일들의 상세 분석을 시작합니다.\n\n해당 파일 타입의 상세 리포트가 생성됩니다.`);
+        }
+
+        function loadPage(pageNum) {
+            // 페이지네이션 구현
+            document.querySelectorAll('.page-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            alert(`${pageNum}페이지를 로드합니다.\n\n메타DB에서 해당 페이지 데이터를 조회합니다.`);
+        }
+
+        function searchComponents(query) {
+            if (query.length > 2) {
+                // 실시간 검색 구현
+                console.log(`검색어: ${query}`);
+                // 실제 구현: 메타DB에서 LIKE 검색
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+=== DB Schema 파일 인코딩 교정 및 통합 ===
+
+1. ALL_TAB_COLUMNS 파일들 통합
+처리 중: ALL_TAB_COLUMNS.csv
+  감지된 인코딩: utf-8
+  성공한 인코딩: utf-8
+  데이터 행 수: 88
+ALL_TAB_COLUMNS.csv 컬럼: ['OWNER', 'TABLE_NAME', 'COLUMN_NAME', 'DATA_TYPE', 'NULLABLE', 'PK', 'COLUMN_COMMENTS']
+처리 중: ALL_TAB_COLUMNS2.csv
+  감지된 인코딩: utf-8
+  성공한 인코딩: utf-8
+  데이터 행 수: 48
+ALL_TAB_COLUMNS2.csv 컬럼: ['SCOTT', 'RELATED_DATA', 'ID', 'NUMBER', 'N', '1', 'ID.1']
+Traceback (most recent call last):
+  File "D:\Analyzer\SourceAnalyzer\temp\fix_encoding.py", line 114, in <module>
+    main()
+    ~~~~^^
+  File "D:\Analyzer\SourceAnalyzer\temp\fix_encoding.py", line 69, in main
+    combined_columns.to_csv('ALL_TAB_COLUMNS_unified.csv', encoding='cp949', index=False)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\kt_oh\AppData\Roaming\Python\Python313\site-packages\pandas\util\_decorators.py", line 333, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\kt_oh\AppData\Roaming\Python\Python313\site-packages\pandas\core\generic.py", line 3986, in to_csv
+    return DataFrameRenderer(formatter).to_csv(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        path_or_buf,
+        ^^^^^^^^^^^^
+    ...<14 lines>...
+        storage_options=storage_options,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\kt_oh\AppData\Roaming\Python\Python313\site-packages\pandas\io\formats\format.py", line 1014, in to_csv
+    csv_formatter.save()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\kt_oh\AppData\Roaming\Python\Python313\site-packages\pandas\io\formats\csvs.py", line 251, in save
+    with get_handle(
+         ~~~~~~~~~~^
+        self.filepath_or_buffer,
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+        storage_options=self.storage_options,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as handles:
+    ^
+  File "C:\Users\kt_oh\AppData\Roaming\Python\Python313\site-packages\pandas\io\common.py", line 894, in get_handle
+    compression or memory_map or _is_binary_mode(handle, ioargs.mode)
+                                 ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\kt_oh\AppData\Roaming\Python\Python313\site-packages\pandas\io\common.py", line 1178, in _is_binary_mode
+    if issubclass(type(handle), text_classes):
+       ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+^C

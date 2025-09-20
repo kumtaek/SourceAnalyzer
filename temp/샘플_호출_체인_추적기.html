@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SourceAnalyzer - 호출 체인 추적기</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; background: #f8f9fa; }
+        .header { background: linear-gradient(135deg, #8e44ad 0%, #3498db 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; text-align: center; }
+        .controls { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .control-group { display: flex; gap: 15px; align-items: center; margin: 10px 0; }
+        .control-group label { font-weight: bold; min-width: 120px; }
+        .control-group select, .control-group input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .trace-button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .trace-button:hover { background: #0056b3; }
+        .content { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .full-width { grid-column: 1 / -1; }
+        .chain-network { height: 500px; border: 2px solid #ddd; border-radius: 8px; }
+        .sequence-diagram { background: #fafafa; padding: 20px; border-radius: 8px; }
+        .chain-step { display: flex; align-items: center; padding: 15px; margin: 10px 0; border-radius: 8px; }
+        .step-1 { background: linear-gradient(90deg, #ff6b6b, #ffa8a8); color: white; }
+        .step-2 { background: linear-gradient(90deg, #4ecdc4, #7fdddd); color: white; }
+        .step-3 { background: linear-gradient(90deg, #45b7d1, #87ceeb); color: white; }
+        .step-4 { background: linear-gradient(90deg, #96ceb4, #c4e5d4); color: white; }
+        .step-5 { background: linear-gradient(90deg, #feca57, #fed766); color: white; }
+        .step-number { font-size: 1.5em; font-weight: bold; margin-right: 15px; width: 30px; text-align: center; }
+        .performance-info { background: #e8f4f8; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .bottleneck { background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 5px; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔗 호출 체인 추적기</h1>
+        <p>사용자 요청부터 데이터베이스까지 전체 실행 경로 추적</p>
+    </div>
+
+    <div class="controls">
+        <h3>🎯 추적 대상 선택</h3>
+        <div class="control-group">
+            <label>시작점 선택:</label>
+            <select id="startPoint">
+                <option value="login_jsp">login.jsp (로그인 화면)</option>
+                <option value="userlist_jsp">userList.jsp (사용자 목록)</option>
+                <option value="api_user_login">/api/user/login (로그인 API)</option>
+                <option value="user_controller">UserController.login()</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label>추적 깊이:</label>
+            <select id="traceDepth">
+                <option value="3">3단계 (Frontend → API → Backend)</option>
+                <option value="5" selected>5단계 (Frontend → Database)</option>
+                <option value="7">7단계 (전체 체인)</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <button class="trace-button" onclick="startTrace()">🔍 추적 시작</button>
+        </div>
+    </div>
+
+    <div class="content">
+        <div class="card full-width">
+            <h3>📊 호출 체인 네트워크 (사용자 로그인 시나리오)</h3>
+            <div id="chainNetwork" class="chain-network"></div>
+        </div>
+
+        <div class="card">
+            <h3>🎭 시퀀스 다이어그램</h3>
+            <div class="sequence-diagram">
+                <div class="mermaid">
+sequenceDiagram
+    participant U as 사용자
+    participant J as login.jsp
+    participant A as /api/user/login
+    participant C as UserController
+    participant S as UserService
+    participant D as UserDao
+    participant X as UserMapper.xml
+    participant DB as USERS 테이블
+    
+    U->>J: 로그인 정보 입력
+    J->>A: AJAX POST 요청
+    A->>C: login() 메서드 호출
+    C->>S: authenticateUser() 호출
+    S->>D: findByUsername() 호출
+    D->>X: selectUserByUsername 쿼리
+    X->>DB: SELECT * FROM USERS WHERE USERNAME=?
+    DB-->>X: 사용자 정보 반환
+    X-->>D: User 객체 반환
+    D-->>S: User 객체 반환
+    S-->>C: 인증 결과 반환
+    C-->>A: JSON 응답
+    A-->>J: 로그인 결과
+    J-->>U: 화면 전환/오류 표시
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>⚡ 성능 분석</h3>
+            
+            <div class="performance-info">
+                <h4>📈 예상 실행 시간 분석</h4>
+                <ul>
+                    <li><strong>Frontend 처리</strong>: ~50ms (DOM 조작, AJAX 요청)</li>
+                    <li><strong>네트워크 지연</strong>: ~20ms (로컬 환경 기준)</li>
+                    <li><strong>Controller/Service</strong>: ~10ms (비즈니스 로직)</li>
+                    <li><strong>Database 쿼리</strong>: ~5ms (인덱스 사용)</li>
+                    <li><strong>총 예상 시간</strong>: ~85ms</li>
+                </ul>
+            </div>
+
+            <div class="bottleneck">
+                <h4>⚠️ 잠재적 병목 지점</h4>
+                <ul>
+                    <li><strong>UserMapper.xml</strong>: 복잡한 WHERE 조건 (3개 테이블 조인)</li>
+                    <li><strong>UserService.authenticateUser()</strong>: 비밀번호 암호화 검증</li>
+                    <li><strong>login.jsp</strong>: 동기식 폼 처리 (비동기 권장)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="content">
+        <div class="card full-width">
+            <h3>📋 단계별 호출 체인 상세</h3>
+            
+            <div class="chain-step step-1">
+                <div class="step-number">1</div>
+                <div>
+                    <strong>Frontend 시작점</strong><br/>
+                    login.jsp → 사용자 입력 폼 → AJAX 요청 생성
+                </div>
+            </div>
+            
+            <div class="chain-step step-2">
+                <div class="step-number">2</div>
+                <div>
+                    <strong>API 호출</strong><br/>
+                    /api/user/login → POST 요청 → UserController.login() 라우팅
+                </div>
+            </div>
+            
+            <div class="chain-step step-3">
+                <div class="step-number">3</div>
+                <div>
+                    <strong>비즈니스 로직</strong><br/>
+                    UserController → UserService.authenticateUser() → 인증 로직 실행
+                </div>
+            </div>
+            
+            <div class="chain-step step-4">
+                <div class="step-number">4</div>
+                <div>
+                    <strong>데이터 접근</strong><br/>
+                    UserService → UserDao.findByUsername() → MyBatis 매퍼 호출
+                </div>
+            </div>
+            
+            <div class="chain-step step-5">
+                <div class="step-number">5</div>
+                <div>
+                    <strong>데이터베이스 쿼리</strong><br/>
+                    UserMapper.xml → SELECT * FROM USERS WHERE USERNAME=? → USERS 테이블 접근
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({startOnLoad: true});
+
+        // 호출 체인 네트워크를 SVG로 대체
+        const chainSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        chainSvg.setAttribute("width", "100%");
+        chainSvg.setAttribute("height", "500");
+        chainSvg.style.background = "#fafafa";
+        
+        // 간단한 체인 다이어그램 생성
+        const chainHtml = `
+            <svg width="100%" height="500" style="background: #fafafa;">
+                <g transform="translate(50, 50)">
+                    <rect x="0" y="0" width="100" height="40" rx="5" fill="#ff6b6b"/>
+                    <text x="50" y="25" text-anchor="middle" fill="white" font-size="12">👤 사용자</text>
+                </g>
+                <g transform="translate(50, 120)">
+                    <rect x="0" y="0" width="100" height="40" rx="5" fill="#ff9800"/>
+                    <text x="50" y="25" text-anchor="middle" fill="white" font-size="10">login.jsp</text>
+                </g>
+                <g transform="translate(50, 190)">
+                    <rect x="0" y="0" width="120" height="40" rx="5" fill="#4ecdc4"/>
+                    <text x="60" y="25" text-anchor="middle" fill="white" font-size="10">/api/user/login</text>
+                </g>
+                <g transform="translate(50, 260)">
+                    <rect x="0" y="0" width="100" height="40" rx="5" fill="#45b7d1"/>
+                    <text x="50" y="25" text-anchor="middle" fill="white" font-size="10">UserController</text>
+                </g>
+                <g transform="translate(50, 330)">
+                    <rect x="0" y="0" width="100" height="40" rx="5" fill="#2ecc71"/>
+                    <text x="50" y="25" text-anchor="middle" fill="white" font-size="10">UserService</text>
+                </g>
+                <g transform="translate(50, 400)">
+                    <ellipse cx="50" cy="20" rx="50" ry="20" fill="#9b59b6"/>
+                    <text x="50" y="25" text-anchor="middle" fill="white" font-size="10">USERS 테이블</text>
+                </g>
+                
+                <!-- 연결선 및 단계 번호 -->
+                <line x1="100" y1="90" x2="100" y2="120" stroke="#007bff" stroke-width="3" marker-end="url(#arrow)"/>
+                <text x="110" y="110" fill="#007bff" font-size="14" font-weight="bold">1</text>
+                
+                <line x1="100" y1="160" x2="100" y2="190" stroke="#007bff" stroke-width="3" marker-end="url(#arrow)"/>
+                <text x="110" y="180" fill="#007bff" font-size="14" font-weight="bold">2</text>
+                
+                <line x1="110" y1="230" x2="100" y2="260" stroke="#007bff" stroke-width="3" marker-end="url(#arrow)"/>
+                <text x="120" y="250" fill="#007bff" font-size="14" font-weight="bold">3</text>
+                
+                <line x1="100" y1="300" x2="100" y2="330" stroke="#007bff" stroke-width="3" marker-end="url(#arrow)"/>
+                <text x="110" y="320" fill="#007bff" font-size="14" font-weight="bold">4</text>
+                
+                <line x1="100" y1="370" x2="100" y2="400" stroke="#007bff" stroke-width="3" marker-end="url(#arrow)"/>
+                <text x="110" y="390" fill="#007bff" font-size="14" font-weight="bold">5</text>
+                
+                <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#007bff"/>
+                    </marker>
+                </defs>
+            </svg>
+        `;
+        
+        document.getElementById('chainNetwork').innerHTML = chainHtml;
+
+        function startTrace() {
+            alert('호출 체인 추적을 시작합니다!\n선택한 시작점부터 데이터베이스까지의 전체 경로를 분석합니다.');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERD Report - SampleSrc</title>
+    <link rel="stylesheet" href="css/woori.css">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+    <style>
+        
+        body.erd-body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 2px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .erd-container {
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .erd-header {
+            background: linear-gradient(90deg, #0d47a1 0%, #1976d2 100%);
+            color: white;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(25, 118, 210, 0.12);
+            margin-bottom: 3px;
+            padding-bottom: 3px;
+            flex-shrink: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .erd-header .header-left {
+            text-align: left;
+        }
+        .erd-header h1 {
+            margin: 0;
+            font-size: 1.4em;
+            font-weight: 300;
+        }
+        .erd-header .subtitle {
+            margin: 2px 0 0 0;
+            opacity: 0.9;
+            font-size: 0.8em;
+        }
+        .diagram-controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+        .diagram-controls button {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.3s ease;
+        }
+        .diagram-controls button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        .zoom-hint {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.7em;
+            opacity: 0.8;
+        }
+        .erd-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 6px;
+            padding: 6px;
+            background: #f8f9fa;
+            margin-bottom: 3px;
+            flex-shrink: 0;
+        }
+        .erd-stat-card {
+            background: white;
+            padding: 6px;
+            border-radius: 4px;
+            text-align: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        .erd-stat-card:hover {
+            transform: translateY(-1px);
+        }
+        .erd-stat-number {
+            font-size: 1.0em;
+            font-weight: bold;
+            color: #3498db;
+            margin-bottom: 1px;
+        }
+        .erd-stat-label {
+            color: #7f8c8d;
+            font-size: 0.6em;
+        }
+        .erd-content {
+            flex: 1;
+            overflow: hidden;
+            padding: 4px;
+        }
+        .erd-section {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .diagram-controls {
+            margin-bottom: 5px;
+        }
+        .diagram-controls button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 2px;
+            font-size: 0.8em;
+        }
+        .diagram-controls button:hover {
+            background: #2980b9;
+        }
+        .zoom-hint {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border: 2px solid #2196f3;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-left: 8px;
+            box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+            animation: pulse 2s infinite;
+        }
+        .hint-icon {
+            font-size: 16px;
+            animation: bounce 1.5s infinite;
+        }
+        .hint-text {
+            font-size: 12px;
+            font-weight: 600;
+            color: #1976d2;
+            white-space: nowrap;
+        }
+        @keyframes pulse {
+            0%, 100% { 
+                box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 4px 16px rgba(33, 150, 243, 0.4);
+                transform: scale(1.02);
+            }
+        }
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-3px); }
+            60% { transform: translateY(-2px); }
+        }
+        .diagram-container {
+            flex: 1;
+            overflow: hidden;
+        }
+        .mermaid-container {
+            background: #f8f9fa;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 0;
+            border: 1px solid #e9ecef;
+            position: relative;
+            overflow: auto;
+            height: 100%;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .mermaid {
+            text-align: center;
+            min-width: 100%;
+            min-height: 400px;
+            overflow: visible;
+        }
+        
+        /* 스크롤바 스타일링 */
+        .mermaid-container::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+        
+        .mermaid-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 6px;
+        }
+        
+        .mermaid-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 6px;
+        }
+        
+        .mermaid-container::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* 줌 상태 표시 */
+        .zoom-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            z-index: 1000;
+        }
+        
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 0 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #2980b9;
+        }
+        
+        .btn.secondary {
+            background: #95a5a6;
+        }
+        
+        .btn.secondary:hover {
+            background: #7f8c8d;
+        }
+        .erd-footer {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 2px;
+            text-align: center;
+            font-size: 9px;
+            opacity: 0.8;
+            flex-shrink: 0;
+            height: 15px;
+        }
+        @media (max-width: 768px) {
+            .erd-container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+            .erd-content {
+                padding: 20px;
+            }
+        }
+        
+    </style>
+</head>
+<body class="erd-body">
+    <div class="erd-container">
+        <div class="erd-header">
+            <div class="header-left">
+                <h1>ERD Report</h1>
+                <div class="subtitle">프로젝트: SampleSrc | 생성일시: 2025-09-19 16:03:08</div>
+            </div>
+            <div class="diagram-controls">
+                <button onclick="exportPng()">PNG 내보내기</button>
+                <button onclick="exportSvg()">SVG 내보내기</button>
+                <div class="zoom-hint">
+                    <span class="hint-icon">🔍</span>
+                    <span class="hint-text">CTRL+휠: 확대/축소 | 드래그: 이동</span>
+                </div>
+            </div>
+        </div>
+        <div class="erd-content">
+            <div class="erd-section">
+                <div class="diagram-container">
+                    
+        <div id="mermaid-container" class="mermaid-container">
+            <div id="zoom-indicator" class="zoom-indicator">100%</div>
+            <div id="erd-diagram" class="mermaid">
+                erDiagram
+    BRANDS {
+        VARCHAR2 BRAND_ID PK "NOT NULL"
+        VARCHAR2 BRAND_CODE "NOT NULL"
+        VARCHAR2 BRAND_NAME "NOT NULL"
+        CHAR DEL_YN "NOT NULL"
+    }
+    CATEGORIES {
+        VARCHAR2 CATEGORY_ID PK "NOT NULL"
+        VARCHAR2 CATEGORY_CODE "NOT NULL"
+        VARCHAR2 CATEGORY_NAME "NOT NULL"
+        CHAR DEL_YN "NOT NULL"
+    }
+    CUSTOMERS {
+        VARCHAR2 CUSTOMER_ID PK "NOT NULL"
+        VARCHAR2 CUSTOMER_NAME "NOT NULL"
+        VARCHAR2 EMAIL
+        VARCHAR2 PHONE
+        VARCHAR2 ADDRESS
+        date CREATED_DATE "NOT NULL"
+        CHAR DEL_YN "NOT NULL"
+    }
+    DISCOUNTS {
+        VARCHAR2 DISCOUNT_ID PK "NOT NULL"
+        VARCHAR2 PRODUCT_ID "NOT NULL"
+        NUMBER DISCOUNT_RATE "NOT NULL"
+        date START_DATE "NOT NULL"
+        date END_DATE "NOT NULL"
+        CHAR ACTIVE_YN "NOT NULL"
+    }
+    DYNAMIC_DATA {
+        NUMBER ID PK "NOT NULL"
+        VARCHAR2 NAME "NOT NULL"
+        VARCHAR2 STATUS
+    }
+    INVENTORIES {
+        VARCHAR2 INVENTORY_ID "NOT NULL"
+        VARCHAR2 PRODUCT_ID "NOT NULL"
+        NUMBER CURRENT_STOCK "NOT NULL"
+        date UPDATED_DATE "NOT NULL"
+    }
+    ORDERS {
+        VARCHAR2 ORDER_ID PK "NOT NULL"
+        VARCHAR2 CUSTOMER_ID PK "NOT NULL"
+        date ORDER_DATE "NOT NULL"
+        VARCHAR2 STATUS "NOT NULL"
+        NUMBER TOTAL_AMOUNT "NOT NULL"
+        NUMBER DISCOUNT_AMOUNT
+        NUMBER TAX_AMOUNT
+        date CREATED_DATE "NOT NULL"
+        date UPDATED_DATE
+        CHAR DEL_YN "NOT NULL"
+    }
+    ORDER_ITEMS {
+        VARCHAR2 ORDER_ITEM_ID PK "NOT NULL"
+        VARCHAR2 ORDER_ID PK "NOT NULL"
+        VARCHAR2 PRODUCT_ID "NOT NULL"
+        NUMBER QUANTITY "NOT NULL"
+        NUMBER UNIT_PRICE "NOT NULL"
+        CHAR DEL_YN "NOT NULL"
+    }
+    PRODUCTS {
+        VARCHAR2 PRODUCT_ID PK "NOT NULL"
+        VARCHAR2 PRODUCT_NAME "NOT NULL"
+        CLOB DESCRIPTION
+        NUMBER PRICE "NOT NULL"
+        NUMBER STOCK_QUANTITY "NOT NULL"
+        VARCHAR2 STATUS "NOT NULL"
+        VARCHAR2 CATEGORY_ID
+        VARCHAR2 BRAND_ID
+        VARCHAR2 SUPPLIER_ID
+        VARCHAR2 WAREHOUSE_ID
+        date CREATED_DATE "NOT NULL"
+        date UPDATED_DATE
+        CHAR DEL_YN "NOT NULL"
+    }
+    PRODUCT_REVIEWS {
+        VARCHAR2 REVIEW_ID PK "NOT NULL"
+        VARCHAR2 PRODUCT_ID "NOT NULL"
+        VARCHAR2 CUSTOMER_ID "NOT NULL"
+        NUMBER RATING "NOT NULL"
+        CLOB REVIEW_TEXT
+        date CREATED_DATE "NOT NULL"
+        CHAR DEL_YN "NOT NULL"
+    }
+    RELATED_DATA {
+        NUMBER ID PK "NOT NULL"
+        NUMBER RELATED_ID PK "NOT NULL"
+        VARCHAR2 VALUE
+    }
+    SUPPLIERS {
+        VARCHAR2 SUPPLIER_ID PK "NOT NULL"
+        VARCHAR2 SUPPLIER_NAME "NOT NULL"
+        CHAR DEL_YN "NOT NULL"
+    }
+    USERS {
+        NUMBER ID PK "NOT NULL"
+        VARCHAR2 USERNAME "NOT NULL"
+        VARCHAR2 EMAIL "NOT NULL"
+        VARCHAR2 PASSWORD "NOT NULL"
+        VARCHAR2 NAME
+        NUMBER AGE
+        VARCHAR2 STATUS
+        VARCHAR2 USER_TYPE
+        VARCHAR2 PHONE
+        VARCHAR2 ADDRESS
+        date CREATED_DATE
+        date UPDATED_DATE
+    }
+    USER_ROLE {
+        NUMBER USER_ID "NOT NULL"
+        NUMBER ROLE_ID "NOT NULL"
+    }
+    USER_TYPES {
+        VARCHAR2 TYPE_CODE PK "NOT NULL"
+        VARCHAR2 TYPE_NAME "NOT NULL"
+        VARCHAR2 DESCRIPTION
+    }
+    WAREHOUSES {
+        VARCHAR2 WAREHOUSE_ID PK "NOT NULL"
+        VARCHAR2 WAREHOUSE_NAME "NOT NULL"
+        VARCHAR2 LOCATION
+        CHAR DEL_YN "NOT NULL"
+    }
+            </div>
+        </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="erd-stats">
+            <div class="erd-stat-card">
+                <div class="erd-stat-number">26</div>
+                <div class="erd-stat-label">전체 테이블</div>
+            </div>
+            <div class="erd-stat-card">
+                <div class="erd-stat-number">91</div>
+                <div class="erd-stat-label">전체 컬럼</div>
+            </div>
+            <div class="erd-stat-card">
+                <div class="erd-stat-number">17</div>
+                <div class="erd-stat-label">Primary Key</div>
+            </div>
+            <div class="erd-stat-card">
+                <div class="erd-stat-number">0</div>
+                <div class="erd-stat-label">Foreign Key</div>
+            </div>
+            <div class="erd-stat-card">
+                <div class="erd-stat-number">35</div>
+                <div class="erd-stat-label">관계</div>
+            </div>
+        </div>
+        <div class="erd-footer">
+            ERD 분석 완료 - 마우스 휠로 확대/축소, 드래그로 이동 가능
+        </div>
+    </div>
+    
+    <script>
+        
+        // Mermaid 초기화
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: false,
+                htmlLabels: true,
+                curve: 'basis'
+            },
+            er: {
+                useMaxWidth: false,
+                htmlLabels: true
+            }
+        });
+        
+        // 줌 및 팬 컨트롤
+        let currentZoom = 1;
+        let isPanning = false;
+        let startX, startY, scrollLeft, scrollTop;
+        
+        function zoomIn() {
+            currentZoom = Math.min(currentZoom * 1.2, 3);
+            applyZoom();
+        }
+        
+        function zoomOut() {
+            currentZoom = Math.max(currentZoom / 1.2, 0.3);
+            applyZoom();
+        }
+        
+        function resetZoom() {
+            currentZoom = 1;
+            applyZoom();
+            // 스크롤도 초기화
+            const container = document.getElementById('mermaid-container');
+            if (container) {
+                container.scrollTop = 0;
+                container.scrollLeft = 0;
+            }
+        }
+        
+        function exportPng() {
+            try {
+                // Mermaid 다이어그램을 PNG로 내보내기
+                const diagram = document.getElementById('erd-diagram');
+                if (!diagram) {
+                    alert('다이어그램을 찾을 수 없습니다.');
+                    return;
+                }
+                
+                // html2canvas 라이브러리 사용
+                if (typeof html2canvas === 'undefined') {
+                    // html2canvas 라이브러리 동적 로드
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                    script.onload = () => performPngExport();
+                    document.head.appendChild(script);
+                } else {
+                    performPngExport();
+                }
+                
+                function performPngExport() {
+                    // 전체 다이어그램을 캡처하기 위해 컨테이너 사용
+                    const container = document.getElementById('mermaid-container');
+                    if (!container) {
+                        alert('다이어그램 컨테이너를 찾을 수 없습니다.');
+                        return;
+                    }
+                    
+                    html2canvas(container, {
+                        backgroundColor: '#ffffff',
+                        scale: 2,
+                        useCORS: true,
+                        allowTaint: true,
+                        scrollX: 0,
+                        scrollY: 0,
+                        width: container.scrollWidth,
+                        height: container.scrollHeight
+                    }).then(canvas => {
+                        const link = document.createElement('a');
+                        link.download = '{project_name}_ERD_full.png';
+                        link.href = canvas.toDataURL();
+                        link.click();
+                    }).catch(err => {
+                        console.error('PNG 내보내기 실패:', err);
+                        alert('PNG 내보내기에 실패했습니다.');
+                    });
+                }
+            } catch (error) {
+                console.error('PNG 내보내기 오류:', error);
+                alert('PNG 내보내기 중 오류가 발생했습니다.');
+            }
+        }
+        
+        function exportSvg() {
+            try {
+                // Mermaid 다이어그램을 SVG로 내보내기
+                const diagram = document.getElementById('erd-diagram');
+                if (!diagram) {
+                    alert('다이어그램을 찾을 수 없습니다.');
+                    return;
+                }
+                
+                // SVG 요소 찾기
+                const svgElement = diagram.querySelector('svg');
+                if (!svgElement) {
+                    alert('SVG 요소를 찾을 수 없습니다.');
+                    return;
+                }
+                
+                // SVG의 전체 크기 정보 추가
+                const svgClone = svgElement.cloneNode(true);
+                const bbox = svgElement.getBBox();
+                svgClone.setAttribute('width', bbox.width + 100);
+                svgClone.setAttribute('height', bbox.height + 100);
+                svgClone.setAttribute('viewBox', `${bbox.x - 50} ${bbox.y - 50} ${bbox.width + 100} ${bbox.height + 100}`);
+                
+                // SVG 내용을 문자열로 변환
+                const svgData = new XMLSerializer().serializeToString(svgClone);
+                const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+                const svgUrl = URL.createObjectURL(svgBlob);
+                
+                // 다운로드 링크 생성
+                const link = document.createElement('a');
+                link.href = svgUrl;
+                link.download = '{project_name}_ERD_full.svg';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(svgUrl);
+                
+            } catch (error) {
+                console.error('SVG 내보내기 오류:', error);
+                alert('SVG 내보내기 중 오류가 발생했습니다.');
+            }
+        }
+        
+        function applyZoom() {
+            const diagram = document.getElementById('erd-diagram');
+            const indicator = document.getElementById('zoom-indicator');
+            if (diagram) {
+                diagram.style.transform = `scale(${currentZoom})`;
+                diagram.style.transformOrigin = 'center top';
+                diagram.style.transition = 'transform 0.2s ease';
+            }
+            if (indicator) {
+                indicator.textContent = Math.round(currentZoom * 100) + '%';
+            }
+        }
+        
+        function downloadSVG() {
+            const svg = document.querySelector('#erd-diagram svg');
+            if (svg) {
+                const svgData = new XMLSerializer().serializeToString(svg);
+                const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+                const svgUrl = URL.createObjectURL(svgBlob);
+                const downloadLink = document.createElement('a');
+                downloadLink.href = svgUrl;
+                downloadLink.download = '{project_name}_ERD.svg';
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+                URL.revokeObjectURL(svgUrl);
+            }
+        }
+        
+        // 드래그로 팬 기능 초기화
+        function initPanAndZoom() {
+            const container = document.getElementById('mermaid-container');
+            if (!container) return;
+            
+            // 마우스 드래그로 팬
+            container.addEventListener('mousedown', function(e) {
+                if (e.button === 0) { // 왼쪽 마우스 버튼
+                    isPanning = true;
+                    startX = e.pageX - container.offsetLeft;
+                    startY = e.pageY - container.offsetTop;
+                    scrollLeft = container.scrollLeft;
+                    scrollTop = container.scrollTop;
+                    container.style.cursor = 'grabbing';
+                    e.preventDefault();
+                }
+            });
+            
+            container.addEventListener('mouseleave', function() {
+                isPanning = false;
+                container.style.cursor = 'grab';
+            });
+            
+            container.addEventListener('mouseup', function() {
+                isPanning = false;
+                container.style.cursor = 'grab';
+            });
+            
+            container.addEventListener('mousemove', function(e) {
+                if (!isPanning) return;
+                e.preventDefault();
+                const x = e.pageX - container.offsetLeft;
+                const y = e.pageY - container.offsetTop;
+                const walkX = (x - startX) * 2;
+                const walkY = (y - startY) * 2;
+                container.scrollLeft = scrollLeft - walkX;
+                container.scrollTop = scrollTop - walkY;
+            });
+            
+            // 마우스 휠로 줌 (Ctrl + 휠)
+            container.addEventListener('wheel', function(e) {
+                if (e.ctrlKey) {
+                    e.preventDefault();
+                    if (e.deltaY < 0) {
+                        zoomIn();
+                    } else {
+                        zoomOut();
+                    }
+                }
+            });
+            
+            // 기본 커서 설정
+            container.style.cursor = 'grab';
+        }
+        
+        // 키보드 단축키
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey) {
+                switch(e.key) {
+                    case '=':
+                    case '+':
+                        e.preventDefault();
+                        zoomIn();
+                        break;
+                    case '-':
+                        e.preventDefault();
+                        zoomOut();
+                        break;
+                    case '0':
+                        e.preventDefault();
+                        resetZoom();
+                        break;
+                }
+            }
+        });
+        
+        // 페이지 로드 시 다이어그램 렌더링 및 기능 초기화
+        window.addEventListener('load', function() {
+            mermaid.init(undefined, '.mermaid').then(function() {
+                // 렌더링 완료 후 팬/줌 기능 초기화
+                setTimeout(initPanAndZoom, 500);
+                // 초기 줌 표시 업데이트
+                applyZoom();
+            });
+        });
+        
+    </script>
+</body>
+</html>

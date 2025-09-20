@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SourceAnalyzer - SampleSrc 프로젝트 대시보드</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; text-align: center; }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .metric-card { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; text-align: center; }
+        .metric-number { font-size: 2.5em; font-weight: bold; margin: 10px 0; }
+        .metric-label { font-size: 1.1em; opacity: 0.9; }
+        .chart-container { height: 300px; position: relative; }
+        .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f8f9fa; font-weight: bold; }
+        .error-indicator { color: #dc3545; font-weight: bold; }
+        .success-indicator { color: #28a745; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 SampleSrc 프로젝트 대시보드</h1>
+        <p>생성일: 2025-09-20 14:30:25 | 분석 대상: Oracle 기반 웹 애플리케이션</p>
+    </div>
+
+    <div class="dashboard-grid">
+        <!-- 전체 통계 -->
+        <div class="card metric-card">
+            <div class="metric-number">127</div>
+            <div class="metric-label">총 컴포넌트 수</div>
+        </div>
+        
+        <div class="card metric-card">
+            <div class="metric-number">98</div>
+            <div class="metric-label">총 파일 수</div>
+        </div>
+        
+        <div class="card metric-card">
+            <div class="metric-number">23</div>
+            <div class="metric-label">데이터베이스 테이블</div>
+        </div>
+        
+        <div class="card metric-card">
+            <div class="metric-number">156</div>
+            <div class="metric-label">테이블 컬럼</div>
+        </div>
+
+        <!-- 파일 타입 분포 -->
+        <div class="card">
+            <h3>📁 파일 타입 분포</h3>
+            <div class="chart-container">
+                <canvas id="fileTypeChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 컴포넌트 타입 분포 -->
+        <div class="card">
+            <h3>🔧 컴포넌트 타입 분포</h3>
+            <div class="chart-container">
+                <canvas id="componentTypeChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 레이어별 분포 -->
+        <div class="card">
+            <h3>🏗️ 아키텍처 레이어 분포</h3>
+            <div class="chart-container">
+                <canvas id="layerChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 코드 품질 지표 -->
+        <div class="card">
+            <h3>✅ 코드 품질 지표</h3>
+            <div class="success">
+                <strong>파싱 성공률: 94.5%</strong> (120/127 컴포넌트)
+            </div>
+            <div class="warning">
+                <strong>주의 필요: 7개 컴포넌트</strong>에서 파싱 오류 발생
+            </div>
+            
+            <table>
+                <tr><th>지표</th><th>값</th><th>상태</th></tr>
+                <tr><td>평균 파일 크기</td><td>2.3KB</td><td class="success-indicator">양호</td></tr>
+                <tr><td>평균 라인 수</td><td>145줄</td><td class="success-indicator">양호</td></tr>
+                <tr><td>복잡한 SQL 쿼리</td><td>12개</td><td class="error-indicator">검토 필요</td></tr>
+                <tr><td>사용되지 않는 테이블</td><td>2개</td><td class="error-indicator">정리 필요</td></tr>
+            </table>
+        </div>
+
+        <!-- 최근 분석 결과 -->
+        <div class="card">
+            <h3>📈 분석 결과 요약</h3>
+            <table>
+                <tr><th>분석 항목</th><th>발견 수</th><th>비고</th></tr>
+                <tr><td>Java 클래스</td><td>45개</td><td>Controller, Service, DAO 포함</td></tr>
+                <tr><td>Java 메서드</td><td>234개</td><td>비즈니스 로직 메서드</td></tr>
+                <tr><td>SQL 쿼리</td><td>67개</td><td>SELECT, INSERT, UPDATE, DELETE</td></tr>
+                <tr><td>API 엔드포인트</td><td>28개</td><td>REST API 호출</td></tr>
+                <tr><td>JSP 페이지</td><td>12개</td><td>사용자 인터페이스</td></tr>
+                <tr><td>테이블 조인</td><td>45개</td><td>명시적/암시적 조인</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 파일 타입 분포 차트
+        const fileTypeCtx = document.getElementById('fileTypeChart').getContext('2d');
+        new Chart(fileTypeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Java', 'XML', 'JSP', 'JSX', 'CSS', 'JS'],
+                datasets: [{
+                    data: [55, 16, 12, 8, 4, 3],
+                    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+
+        // 컴포넌트 타입 분포 차트
+        const componentTypeCtx = document.getElementById('componentTypeChart').getContext('2d');
+        new Chart(componentTypeCtx, {
+            type: 'bar',
+            data: {
+                labels: ['METHOD', 'CLASS', 'SQL_SELECT', 'SQL_INSERT', 'TABLE', 'API_URL'],
+                datasets: [{
+                    label: '개수',
+                    data: [78, 45, 35, 18, 23, 28],
+                    backgroundColor: '#36A2EB'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+
+        // 레이어별 분포 차트
+        const layerCtx = document.getElementById('layerChart').getContext('2d');
+        new Chart(layerCtx, {
+            type: 'horizontalBar',
+            data: {
+                labels: ['FRONTEND', 'CONTROLLER', 'SERVICE', 'REPOSITORY', 'MODEL'],
+                datasets: [{
+                    label: '컴포넌트 수',
+                    data: [20, 15, 18, 12, 8],
+                    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { beginAtZero: true }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

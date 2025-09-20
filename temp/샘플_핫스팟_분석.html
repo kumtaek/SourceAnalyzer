@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SourceAnalyzer - 핫스팟 분석</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; background: #f8f9fa; }
+        .header { background: linear-gradient(135deg, #ff7675 0%, #fd79a8 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; text-align: center; }
+        .hotspot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .chart-container { height: 300px; position: relative; }
+        .ranking-list { max-height: 350px; overflow-y: auto; }
+        .ranking-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; margin: 8px 0; border-radius: 6px; }
+        .rank-1 { background: linear-gradient(90deg, #ffd700, #fff8dc); border-left: 4px solid #ffd700; }
+        .rank-2 { background: linear-gradient(90deg, #c0c0c0, #f0f0f0); border-left: 4px solid #c0c0c0; }
+        .rank-3 { background: linear-gradient(90deg, #cd7f32, #f5deb3); border-left: 4px solid #cd7f32; }
+        .rank-normal { background: #f8f9fa; border-left: 4px solid #dee2e6; }
+        .rank-number { font-size: 1.2em; font-weight: bold; margin-right: 10px; }
+        .component-info { flex-grow: 1; }
+        .component-name { font-weight: bold; color: #2c3e50; }
+        .component-detail { font-size: 0.9em; color: #7f8c8d; }
+        .score { font-size: 1.1em; font-weight: bold; color: #e74c3c; }
+        .warning-zone { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .critical-zone { background: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .recommendation { background: #d1ecf1; border: 1px solid #bee5eb; padding: 15px; border-radius: 5px; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔥 핫스팟 분석</h1>
+        <p>가장 중요하고 위험한 코드 영역 식별 | 리팩토링 우선순위 제시</p>
+    </div>
+
+    <div class="hotspot-grid">
+        <div class="card">
+            <h3>🏆 가장 많이 호출되는 메서드 TOP 10</h3>
+            <div class="ranking-list">
+                <div class="ranking-item rank-1">
+                    <div class="rank-number">1</div>
+                    <div class="component-info">
+                        <div class="component-name">UserService.authenticateUser()</div>
+                        <div class="component-detail">로그인, 권한 검증에서 호출</div>
+                    </div>
+                    <div class="score">47회</div>
+                </div>
+                <div class="ranking-item rank-2">
+                    <div class="rank-number">2</div>
+                    <div class="component-info">
+                        <div class="component-name">ProductService.getProductList()</div>
+                        <div class="component-detail">상품 목록, 검색에서 호출</div>
+                    </div>
+                    <div class="score">34회</div>
+                </div>
+                <div class="ranking-item rank-3">
+                    <div class="rank-number">3</div>
+                    <div class="component-info">
+                        <div class="component-name">UserDao.findById()</div>
+                        <div class="component-detail">사용자 정보 조회</div>
+                    </div>
+                    <div class="score">28회</div>
+                </div>
+                <div class="ranking-item rank-normal">
+                    <div class="rank-number">4</div>
+                    <div class="component-info">
+                        <div class="component-name">OrderService.createOrder()</div>
+                        <div class="component-detail">주문 생성 프로세스</div>
+                    </div>
+                    <div class="score">23회</div>
+                </div>
+                <div class="ranking-item rank-normal">
+                    <div class="rank-number">5</div>
+                    <div class="component-info">
+                        <div class="component-name">ProductDao.searchByCategory()</div>
+                        <div class="component-detail">카테고리별 상품 검색</div>
+                    </div>
+                    <div class="score">19회</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>🗄️ 가장 많이 사용되는 테이블 TOP 10</h3>
+            <div class="chart-container">
+                <canvas id="tableUsageChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>⚡ 복잡도 높은 컴포넌트 TOP 10</h3>
+            <div class="ranking-list">
+                <div class="ranking-item rank-1">
+                    <div class="rank-number">1</div>
+                    <div class="component-info">
+                        <div class="component-name">OrderService.processComplexOrder()</div>
+                        <div class="component-detail">복잡한 주문 처리 로직</div>
+                    </div>
+                    <div class="score">9.8</div>
+                </div>
+                <div class="ranking-item rank-2">
+                    <div class="rank-number">2</div>
+                    <div class="component-info">
+                        <div class="component-name">ComplexQueryMapper.xml</div>
+                        <div class="component-detail">다중 테이블 조인 쿼리</div>
+                    </div>
+                    <div class="score">9.2</div>
+                </div>
+                <div class="ranking-item rank-3">
+                    <div class="rank-number">3</div>
+                    <div class="component-info">
+                        <div class="component-name">ProductService.calculatePrice()</div>
+                        <div class="component-detail">가격 계산 알고리즘</div>
+                    </div>
+                    <div class="score">8.7</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>📊 의존성 집중도</h3>
+            <div class="chart-container">
+                <canvas id="dependencyChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>⚠️ 위험 지역 (Critical Zones)</h3>
+            
+            <div class="critical-zone">
+                <h4>🚨 즉시 개선 필요</h4>
+                <ul>
+                    <li><strong>OrderService.processComplexOrder()</strong> - 복잡도 9.8, 47개 호출</li>
+                    <li><strong>USERS 테이블</strong> - 15개 쿼리에서 사용, 변경 시 광범위 영향</li>
+                </ul>
+            </div>
+
+            <div class="warning-zone">
+                <h4>⚠️ 주의 관찰 필요</h4>
+                <ul>
+                    <li><strong>UserController</strong> - 메서드 수 과다 (15개)</li>
+                    <li><strong>ProductService</strong> - 중복 코드 패턴 발견</li>
+                </ul>
+            </div>
+
+            <div class="recommendation">
+                <h4>💡 개선 권장사항</h4>
+                <ul>
+                    <li><strong>리팩토링 우선순위</strong>: OrderService → UserController → ProductService</li>
+                    <li><strong>테스트 강화</strong>: 핫스팟 메서드들에 대한 단위 테스트 추가</li>
+                    <li><strong>모니터링</strong>: 높은 복잡도 컴포넌트 성능 모니터링</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 테이블 사용 빈도 차트
+        const tableCtx = document.getElementById('tableUsageChart').getContext('2d');
+        new Chart(tableCtx, {
+            type: 'bar',
+            data: {
+                labels: ['USERS', 'PRODUCTS', 'ORDERS', 'ORDER_ITEMS', 'CATEGORIES', 'CUSTOMERS'],
+                datasets: [{
+                    label: '사용 쿼리 수',
+                    data: [15, 12, 10, 8, 6, 5],
+                    backgroundColor: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3']
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { beginAtZero: true }
+                }
+            }
+        });
+
+        // 의존성 집중도 차트
+        const depCtx = document.getElementById('dependencyChart').getContext('2d');
+        new Chart(depCtx, {
+            type: 'bubble',
+            data: {
+                datasets: [{
+                    label: '컴포넌트별 의존성',
+                    data: [
+                        {x: 47, y: 9.8, r: 15, label: 'OrderService'},
+                        {x: 34, y: 6.3, r: 12, label: 'UserController'},
+                        {x: 28, y: 3.2, r: 10, label: 'UserDao'},
+                        {x: 23, y: 8.7, r: 8, label: 'ProductService'},
+                        {x: 19, y: 5.1, r: 6, label: 'CategoryService'}
+                    ],
+                    backgroundColor: 'rgba(255, 107, 107, 0.6)',
+                    borderColor: 'rgba(255, 107, 107, 1)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { 
+                        title: { display: true, text: '호출 빈도' },
+                        beginAtZero: true
+                    },
+                    y: { 
+                        title: { display: true, text: '복잡도' },
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.raw.label}: 호출 ${context.parsed.x}회, 복잡도 ${context.parsed.y}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
